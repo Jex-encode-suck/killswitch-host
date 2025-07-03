@@ -1,11 +1,100 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>KillSwitch</title>
+<meta charset="UTF-8">
+<title>Nexus Menu</title>
+<style>
+  body {
+    margin: 0;
+    background: transparent;
+    font-family: sans-serif;
+  }
+  .menu {
+    width: 400px;
+    background: #111;
+    color: white;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 0 10px #0f0;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .logo {
+    width: 100%;
+    display: block;
+  }
+  .tabs {
+    display: flex;
+    flex-wrap: wrap;
+    background: #000;
+  }
+  .tab {
+    flex: 1 1 33%;
+    text-align: center;
+    padding: 8px;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .tab.active {
+    background: #0f0;
+    color: #000;
+  }
+  .content {
+    padding: 10px;
+    min-height: 100px;
+  }
+  .footer {
+    background: #000;
+    padding: 5px;
+    font-size: 12px;
+    color: #aaa;
+    text-align: center;
+  }
+</style>
 </head>
 <body>
-  <h1>It works!</h1>
-  <p>This is the KillSwitch Host page.</p>
+  <div class="menu">
+    <img src="https://via.placeholder.com/400x50.png?text=NEXUS" class="logo">
+    <div class="tabs" id="tabBar">
+      <div class="tab active" data-tab="Self">Self</div>
+      <div class="tab" data-tab="Players">Players</div>
+      <div class="tab" data-tab="Visuals">Visuals</div>
+      <div class="tab" data-tab="Combat">Combat</div>
+      <div class="tab" data-tab="Weapons">Weapons</div>
+      <div class="tab" data-tab="Vehicles">Vehicles</div>
+      <div class="tab" data-tab="Misc">Misc</div>
+      <div class="tab" data-tab="Server">Server</div>
+      <div class="tab" data-tab="Settings">Settings</div>
+    </div>
+    <div class="content" id="contentArea">
+      Selected Tab: <strong>Self</strong>
+    </div>
+    <div class="footer">Version: Delta | 24hrs ago</div>
+  </div>
+
+<script>
+let tabs = document.querySelectorAll('.tab');
+let content = document.getElementById('contentArea');
+
+tabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    tabs.forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    let selected = tab.dataset.tab;
+    content.innerHTML = `Selected Tab: <strong>${selected}</strong>`;
+    // This is where you'd send a NUI callback if needed:
+    // fetch(`https://${GetParentResourceName()}/tabSelected`, { ... })
+  });
+});
+
+// ESC key closes (optional depending on executor's NUI handler)
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    window.close();
+  }
+});
+</script>
 </body>
 </html>
