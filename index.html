@@ -19,8 +19,18 @@
     position: absolute;
     top: 50%;
     left: 50%;
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%) scale(0.9);
+    opacity: 0;
+    animation: fadeIn 0.5s forwards;
   }
+
+  @keyframes fadeIn {
+    to {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+  }
+
   .logo {
     width: 100%;
     display: block;
@@ -36,6 +46,7 @@
     padding: 8px;
     cursor: pointer;
     font-size: 12px;
+    transition: background 0.3s, color 0.3s;
   }
   .tab.active {
     background: #0f0;
@@ -44,6 +55,13 @@
   .content {
     padding: 10px;
     min-height: 100px;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.3s, transform 0.3s;
+  }
+  .content.show {
+    opacity: 1;
+    transform: translateY(0);
   }
   .footer {
     background: #000;
@@ -68,7 +86,7 @@
       <div class="tab" data-tab="Server">Server</div>
       <div class="tab" data-tab="Settings">Settings</div>
     </div>
-    <div class="content" id="contentArea">
+    <div class="content show" id="contentArea">
       Selected Tab: <strong>Self</strong>
     </div>
     <div class="footer">Version: Delta | 24hrs ago</div>
@@ -83,9 +101,20 @@ tabs.forEach(tab => {
     tabs.forEach(t => t.classList.remove('active'));
     tab.classList.add('active');
     let selected = tab.dataset.tab;
-    content.innerHTML = `Selected Tab: <strong>${selected}</strong>`;
-    // This is where you'd send a NUI callback if needed:
-    // fetch(`https://${GetParentResourceName()}/tabSelected`, { ... })
+
+    // Animate content change
+    content.classList.remove('show');
+    setTimeout(() => {
+      content.innerHTML = `Selected Tab: <strong>${selected}</strong>`;
+      content.classList.add('show');
+    }, 150);
+
+    // Example NUI callback (if your executor handles it)
+    // fetch(`https://${GetParentResourceName()}/tabSelected`, {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify({ tab: selected })
+    // });
   });
 });
 
