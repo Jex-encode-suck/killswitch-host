@@ -5,9 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Web2View Loader</title>
 <style>
-/* Reset & body */
 *{margin:0;padding:0;box-sizing:border-box;font-family:'Inter',sans-serif;}
-body{display:flex;justify-content:center;align-items:center;height:100vh;background:linear-gradient(135deg,#1e3c72,#2a5298);overflow:hidden;color:#fff;position:relative;}
+body{display:flex;justify-content:center;align-items:flex-start;height:800px;background:linear-gradient(135deg,#1e3c72,#2a5298);overflow:hidden;color:#fff;position:relative;padding-top:20px;}
 
 /* Floating background circles */
 .circle{position:absolute;border-radius:50%;opacity:0.2;animation: float 25s infinite linear;}
@@ -17,7 +16,7 @@ body{display:flex;justify-content:center;align-items:center;height:100vh;backgro
 @keyframes float{0%{transform:translateY(0) rotate(0deg);}50%{transform:translateY(-50px) rotate(180deg);}100%{transform:translateY(0) rotate(360deg);}}
 
 /* Container */
-.container{position:relative;width:500px;background:rgba(255,255,255,0.05);border-radius:20px;backdrop-filter:blur(15px);box-shadow:0 20px 60px rgba(0,0,0,0.3);padding:20px;z-index:1;animation: fadeIn 1s ease forwards;}
+.container{position:relative;width:500px;background:rgba(255,255,255,0.05);border-radius:20px;backdrop-filter:blur(15px);box-shadow:0 20px 60px rgba(0,0,0,0.3);padding:20px;z-index:1;animation: fadeIn 1s ease forwards;transition:opacity 0.5s;}
 @keyframes fadeIn{from{opacity:0;transform:translateY(-20px);}to{opacity:1;transform:translateY(0);}}
 
 /* Tabs */
@@ -46,11 +45,11 @@ button:hover{transform:scale(1.05);box-shadow:0 0 40px rgba(255,110,199,0.6),0 0
 .preconfigs button:hover{background:rgba(255,255,255,0.35);}
 
 /* Inject overlay */
-#injectOverlay{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);display:flex;justify-content:center;align-items:center;flex-direction:column;opacity:0;pointer-events:none;transition:opacity 0.5s;}
+#injectOverlay{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);display:flex;justify-content:center;align-items:center;flex-direction:column;opacity:0;pointer-events:none;transition:opacity 0.5s;z-index:10;}
 #injectOverlay.show{opacity:1;pointer-events:auto;}
-.loader{border:5px solid rgba(255,255,255,0.2);border-top:5px solid #fff;border-radius:50%;width:60px;height:60px;animation:spin 1s linear infinite;margin-bottom:20px;}
+.loader{border:5px solid rgba(255,255,255,0.2);border-top:5px solid #fff;border-radius:50%;width:80px;height:80px;animation:spin 1s linear infinite;margin-bottom:20px;}
 @keyframes spin{0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}
-#successMessage{opacity:0;font-size:1.5rem;transition:opacity 0.5s;}
+#successMessage{opacity:0;font-size:2rem;transition:opacity 0.5s;color:#fff;}
 #successMessage.show{opacity:1;}
 </style>
 </head>
@@ -122,8 +121,15 @@ tabs.forEach(tab=>{
     });
 });
 
+// Send message to C#
+function sendMessage(msg){
+    if(window.chrome && window.chrome.webview){
+        window.chrome.webview.postMessage(msg);
+    }
+}
+
 // Home button
-document.getElementById('testBtn').addEventListener('click',()=>{sendMessage('testBtn');});
+document.getElementById('testBtn').addEventListener('click',()=>sendMessage('testBtn'));
 
 // Settings controls
 document.getElementById('featureA').addEventListener('change',()=>sendMessage('featureA'));
@@ -140,30 +146,30 @@ document.querySelectorAll('.preconfigs button').forEach(btn=>{
     });
 });
 
-// Inject button
+// Inject button with overlay
 document.getElementById('injectBtn').addEventListener('click',()=>{
     const overlay = document.getElementById('injectOverlay');
     const success = document.getElementById('successMessage');
+    const container = document.querySelector('.container');
+
+    // Hide main container
+    container.style.opacity = '0';
     overlay.classList.add('show');
     sendMessage('inject_start');
+
     setTimeout(()=>{
         overlay.querySelector('.loader').style.display='none';
         success.classList.add('show');
         sendMessage('inject_success');
+
         setTimeout(()=>{
             overlay.classList.remove('show');
             overlay.querySelector('.loader').style.display='block';
             success.classList.remove('show');
+            container.style.opacity = '1';
         },1500);
     },2000);
 });
-
-// Send message to C#
-function sendMessage(msg){
-    if(window.chrome && window.chrome.webview){
-        window.chrome.webview.postMessage(msg);
-    }
-}
 
 // Apply theme
 function applyTheme(theme){
