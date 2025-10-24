@@ -3,138 +3,164 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Web2View Loader</title>
+<title>Web2View Loader Tabs</title>
 <style>
-    /* Reset */
-    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+/* Reset & body */
+* { margin:0; padding:0; box-sizing:border-box; font-family:'Inter', sans-serif;}
+body {
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+    background: linear-gradient(135deg, #1e3c72, #2a5298);
+    overflow:hidden;
+}
 
-    body {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-        background: linear-gradient(135deg, #1e3c72, #2a5298);
-        overflow: hidden;
-        perspective: 1000px;
-    }
+/* Floating circles background */
+.circle {
+    position:absolute;
+    border-radius:50%;
+    opacity:0.2;
+    animation: float 25s infinite linear;
+}
+.circle:nth-child(1){width:200px;height:200px;background:#ff6ec7;top:10%;left:15%;}
+.circle:nth-child(2){width:150px;height:150px;background:#00f2fe;top:50%;left:70%;}
+.circle:nth-child(3){width:250px;height:250px;background:#ffde6c;top:70%;left:30%;}
+@keyframes float{
+    0% {transform:translateY(0) rotate(0deg);}
+    50% {transform:translateY(-50px) rotate(180deg);}
+    100% {transform:translateY(0) rotate(360deg);}
+}
 
-    /* Floating background circles */
-    .circle {
-        position: absolute;
-        border-radius: 50%;
-        opacity: 0.2;
-        animation: float 20s infinite linear;
-    }
+/* Main container */
+.container{
+    position:relative;
+    width:400px;
+    background: rgba(255,255,255,0.05);
+    border-radius:25px;
+    backdrop-filter:blur(15px);
+    box-shadow:0 20px 60px rgba(0,0,0,0.3);
+    padding:20px;
+    z-index:1;
+    animation: fadeIn 1s ease forwards;
+}
 
-    .circle:nth-child(1) { width: 200px; height: 200px; background: #ff6ec7; top: 10%; left: 15%; animation-duration: 25s; }
-    .circle:nth-child(2) { width: 150px; height: 150px; background: #00f2fe; top: 50%; left: 70%; animation-duration: 30s; }
-    .circle:nth-child(3) { width: 250px; height: 250px; background: #ffde6c; top: 70%; left: 30%; animation-duration: 35s; }
+/* Tabs */
+.tabs{
+    display:flex;
+    justify-content:space-around;
+    margin-bottom:20px;
+}
+.tab{
+    padding:10px 20px;
+    cursor:pointer;
+    border-radius:15px;
+    color:#fff;
+    transition:0.3s;
+}
+.tab.active, .tab:hover{
+    background: rgba(255,255,255,0.2);
+}
 
-    @keyframes float {
-        0% { transform: translateY(0) rotate(0deg);}
-        50% { transform: translateY(-50px) rotate(180deg);}
-        100% { transform: translateY(0) rotate(360deg);}
-    }
+/* Tab content */
+.tab-content{
+    display:none;
+    color:#fff;
+    animation: slideFade 0.5s ease;
+}
+.tab-content.active{display:block;}
 
-    /* Main card */
-    .container {
-        position: relative;
-        text-align: center;
-        padding: 50px 80px;
-        background: rgba(255, 255, 255, 0.05);
-        border-radius: 25px;
-        backdrop-filter: blur(15px);
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-        animation: fadeIn 1.2s ease forwards;
-        z-index: 1;
-    }
+/* Buttons */
+button{
+    padding:15px 40px;
+    font-size:1rem;
+    font-weight:600;
+    color:#fff;
+    background:linear-gradient(45deg,#ff6ec7,#00f2fe);
+    border:none;
+    border-radius:50px;
+    cursor:pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 0 20px rgba(0,0,0,0.2);
+    position: relative;
+    overflow:hidden;
+}
+button::after{
+    content:'';
+    position:absolute;
+    width:200%; height:200%;
+    background: rgba(255,255,255,0.15);
+    top:-50%; left:-50%;
+    transform:rotate(45deg);
+    transition:0.5s;
+}
+button:hover::after{
+    top:-20%; left:-20%;
+}
+button:hover{transform:scale(1.05); box-shadow:0 0 40px rgba(255,110,199,0.6),0 0 40px rgba(0,242,254,0.6);}
 
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(-50px);}
-        to { opacity: 1; transform: translateY(0);}
-    }
-
-    h1 {
-        font-size: 2.5rem;
-        margin-bottom: 30px;
-        color: #fff;
-        letter-spacing: 1px;
-        animation: slideIn 1s ease forwards;
-    }
-
-    @keyframes slideIn {
-        from { opacity: 0; transform: translateY(-30px);}
-        to { opacity: 1; transform: translateY(0);}
-    }
-
-    /* Glowing button */
-    button {
-        padding: 18px 50px;
-        font-size: 1.2rem;
-        font-weight: 600;
-        color: #fff;
-        background: linear-gradient(45deg, #ff6ec7, #00f2fe);
-        border: none;
-        border-radius: 50px;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
-        position: relative;
-        overflow: hidden;
-    }
-
-    button::after {
-        content: '';
-        position: absolute;
-        width: 200%;
-        height: 200%;
-        background: rgba(255,255,255,0.15);
-        top: -50%;
-        left: -50%;
-        transform: rotate(45deg);
-        transition: all 0.5s ease;
-    }
-
-    button:hover::after {
-        top: -20%;
-        left: -20%;
-    }
-
-    button:hover {
-        transform: scale(1.05);
-        box-shadow: 0 0 40px rgba(255, 110, 199, 0.6), 0 0 40px rgba(0, 242, 254, 0.6);
-    }
-
-    /* Responsive */
-    @media(max-width: 600px){
-        .container { padding: 30px 20px; }
-        h1 { font-size: 2rem; }
-        button { padding: 15px 40px; font-size: 1rem; }
-    }
+/* Animations */
+@keyframes fadeIn{from{opacity:0; transform:translateY(-20px);} to{opacity:1; transform:translateY(0);}}
+@keyframes slideFade{from{opacity:0; transform:translateY(20px);} to{opacity:1; transform:translateY(0);}}
 </style>
 </head>
 <body>
 
-<!-- Floating circles -->
+<!-- Background circles -->
 <div class="circle"></div>
 <div class="circle"></div>
 <div class="circle"></div>
 
 <div class="container">
-    <h1>test</h1>
-    <button id="testBtn">golden age rev</button>
+    <!-- Tabs -->
+    <div class="tabs">
+        <div class="tab active" data-tab="home">Home</div>
+        <div class="tab" data-tab="settings">Settings</div>
+        <div class="tab" data-tab="about">About</div>
+    </div>
+
+    <!-- Tab content -->
+    <div id="home" class="tab-content active">
+        <h2>Welcome!</h2>
+        <button id="testBtn">Press Me</button>
+    </div>
+
+    <div id="settings" class="tab-content">
+        <h2>Settings</h2>
+        <p>Here you can adjust your loader options.</p>
+    </div>
+
+    <div id="about" class="tab-content">
+        <h2>About</h2>
+        <p>This is a Web2View loader demo with tabs and animations.</p>
+    </div>
 </div>
 
 <script>
-    const button = document.getElementById('testBtn');
-    button.addEventListener('click', () => {
-        // Send message to C# WebView2
-        if (window.chrome && window.chrome.webview) {
-            window.chrome.webview.postMessage('button_pressed');
-        } else {
-            console.log('Button pressed (no WebView2 detected)');
-        }
+const tabs = document.querySelectorAll('.tab');
+const contents = document.querySelectorAll('.tab-content');
+
+tabs.forEach(tab=>{
+    tab.addEventListener('click',()=>{
+        tabs.forEach(t=>t.classList.remove('active'));
+        tab.classList.add('active');
+
+        const target = tab.getAttribute('data-tab');
+        contents.forEach(c=>{
+            c.classList.remove('active');
+            if(c.id===target) c.classList.add('active');
+        });
     });
+});
+
+// Button -> WebView2 message
+const button = document.getElementById('testBtn');
+button.addEventListener('click',()=>{
+    if(window.chrome && window.chrome.webview){
+        window.chrome.webview.postMessage('button_pressed');
+    } else { console.log('Button pressed (no WebView2)'); }
+});
 </script>
+
 </body>
 </html>
