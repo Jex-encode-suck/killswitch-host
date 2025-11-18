@@ -1,626 +1,339 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>exiled.wtf</title>
-  <link rel="stylesheet" href="https://exiled.wtf/LuaMenuStyle">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Scintilla Loader — Enhanced</title>
+  <style>
+    :root{
+      --bg-1:#0b0711; --bg-2:#160a2a; --accent:#a870ff; --accent-2:#5be8c4; --glass: rgba(255,255,255,0.03);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,Arial;background:var(--bg-1);color:#eaeef8}
+
+    /* ---------------- Animated background + scanning grid ---------------- */
+    .bg-wrap{position:fixed;inset:0;overflow:hidden;z-index:-5}
+    .animated-gradient{position:absolute;inset:-10%;background:linear-gradient(120deg,#0a0420 0%,#14061a 30%,#1a0433 60%,#050416 100%);background-size:300% 300%;animation:gradShift 18s linear infinite;filter:blur(30px) saturate(120%);opacity:0.9}
+    @keyframes gradShift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+
+    /* scanning grid overlay */
+    .scan-grid{position:absolute;inset:0;mix-blend-mode:overlay;opacity:0.08;background-image:linear-gradient(transparent 94%, rgba(255,255,255,0.03) 96%),linear-gradient(90deg, transparent 94%, rgba(255,255,255,0.03) 96%);background-size:100% 40px,40px 100%;animation:scanMove 6s linear infinite}
+    @keyframes scanMove{0%{transform:translateY(0)}50%{transform:translateY(6px)}100%{transform:translateY(0)}}
+
+    /* ---------------- container layout ---------------- */
+    .app{position:relative;display:grid;grid-template-columns:240px 1fr 320px;gap:20px;height:100vh;padding:28px}
+
+    /* ---------------- neon sidebar ---------------- */
+    .sidebar{background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);border-radius:14px;padding:18px;border:1px solid rgba(160,120,255,0.08);box-shadow:0 10px 30px rgba(20,8,40,0.6);backdrop-filter:blur(10px);transform:translateX(-30px);opacity:0;animation:slideIn .9s forwards .4s;position:relative;overflow:hidden}
+    @keyframes slideIn{to{transform:none;opacity:1}}
+    .logo{display:flex;align-items:center;gap:12px}
+    .logo svg{width:44px;height:44px}
+    .menu{margin-top:18px}
+    .nav-item{padding:12px 14px;border-radius:10px;margin-bottom:8px;cursor:pointer;position:relative;color:#cfcfe6}
+    .nav-item:hover{background:linear-gradient(90deg, rgba(168,112,255,0.06), rgba(91,232,196,0.02));transform:translateX(6px)}
+    .nav-item.active{box-shadow:0 0 18px rgba(168,112,255,0.12), inset 0 0 20px rgba(80,40,160,0.06);border-left:3px solid var(--accent);background:linear-gradient(90deg,rgba(168,112,255,0.06),transparent)}
+
+    /* neon border lines */
+    .neon-border{position:relative}
+    .neon-border:before,.neon-border:after{content:"";position:absolute;inset:1px;border-radius:12px;pointer-events:none}
+    .neon-border:before{border:1px solid rgba(160,112,255,0.12);filter:blur(6px)}
+    .neon-border:after{border:2px solid transparent;background:linear-gradient(90deg,rgba(168,112,255,0.25),rgba(91,232,196,0.14));-webkit-mask: linear-gradient(#000,#000) content-box, linear-gradient(#000,#000);mask:linear-gradient(#000,#000) content-box, linear-gradient(#000,#000);padding:2px}
+
+    /* ---------------- main card area ---------------- */
+    .main{display:flex;align-items:flex-start;justify-content:center}
+    .card{width:100%;max-width:640px;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));border-radius:16px;padding:28px;border:1px solid rgba(255,255,255,0.03);box-shadow:0 20px 40px rgba(6,4,10,0.7);position:relative;overflow:visible}
+
+    /* floating glow orbs */
+    .orb{position:absolute;border-radius:50%;filter:blur(28px);opacity:.65;mix-blend-mode:screen}
+    .orb.orb-1{width:220px;height:220px;left:-80px;top:-80px;background:radial-gradient(circle, rgba(168,112,255,0.95), rgba(91,232,196,0.1));animation:orbFloat 9s ease-in-out infinite}
+    .orb.orb-2{width:140px;height:140px;right:-40px;bottom:-40px;background:radial-gradient(circle, rgba(95,120,255,0.9), rgba(5,12,40,0.05));animation:orbFloat 11s ease-in-out infinite}
+    @keyframes orbFloat{0%{transform:translateY(0) translateX(0)}50%{transform:translateY(-12px) translateX(6px)}100%{transform:translateY(0) translateX(0)}}
+
+    .card h1{margin:0 0 10px 0;font-size:28px}
+    .card p{margin:0 0 16px 0;color:#d5d5f0cc}
+
+    /* small UI components */
+    .features{display:flex;gap:16px;flex-wrap:wrap}
+    .feature{background:rgba(255,255,255,0.02);padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.02)}
+
+    /* ---------------- right panel ---------------- */
+    .right{padding:18px;border-radius:14px;background:linear-gradient(180deg, rgba(255,255,255,0.015), transparent);border:1px solid rgba(255,255,255,0.02);box-shadow:0 10px 30px rgba(0,0,0,0.6)}
+    .muted{color:#98a0c8;font-size:13px}
+    .status{display:flex;justify-content:space-between;align-items:center}
+
+    /* inject button with neon glow */
+    .inject{margin-top:18px;padding:12px;border-radius:10px;border:none;background:linear-gradient(90deg,var(--accent), #c29aff);color:#09060b;font-weight:700;cursor:pointer;box-shadow:0 6px 26px rgba(168,112,255,0.18), 0 0 50px rgba(168,112,255,0.08);}
+
+    /* ---------------- tabs ---------------- */
+    .tabs{display:flex;gap:8px;margin-bottom:16px}
+    .tab{padding:8px 12px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.02);cursor:pointer}
+    .tab.active{background:linear-gradient(90deg, rgba(168,112,255,0.06), rgba(91,232,196,0.03));border-color:rgba(168,112,255,0.14)}
+
+    /* ---------------- typewriter / boot sequence overlay ---------------- */
+    #bootOverlay{position:fixed;inset:0;background:linear-gradient(180deg, rgba(2,2,6,0.85), rgba(2,2,6,0.92));display:flex;align-items:center;justify-content:center;flex-direction:column;z-index:9998}
+    .boot-box{width:720px;max-width:92%;padding:26px;border-radius:12px;background:rgba(0,0,0,0.45);border:1px solid rgba(255,255,255,0.03);box-shadow:0 10px 40px rgba(0,0,0,0.7)}
+    .boot-log{font-family:monospace;font-size:14px;line-height:1.45;color:#bfc9ff;min-height:140px;white-space:pre-wrap}
+    .progress{height:8px;background:rgba(255,255,255,0.04);border-radius:999px;margin-top:12px;overflow:hidden}
+    .progress > i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent-2));box-shadow:0 6px 18px rgba(168,112,255,0.24);transition:width 600ms cubic-bezier(.2,.9,.2,1)}
+
+    /* ---------------- mouse trails canvas ---------------- */
+    #trailCanvas{position:fixed;inset:0;pointer-events:none;z-index:999;mix-blend-mode:screen}
+
+    /* small helpers */
+    .muted2{font-size:13px;color:#98a0c8}
+
+    @media (max-width:980px){.app{grid-template-columns:1fr;grid-template-rows:auto 1fr auto;padding:14px}.right{order:3}}
+  </style>
 </head>
 <body>
-  <div class="menu-wrapper">
-    <div class="scrollbar-container">
-      <div class="scrollbar-thumb" id="scrollbar-thumb"></div>
-    </div>
-    <div class="menu-container">
-      <div id="info-notification-box">
-        <div class="icon">
-          !
-        </div>
-        <div class="text-container"></div>
-      </div>
-      <div class="menu-header"></div>
-      <div class="menu-tabs" id="menu-tabs">
-        <div class="menu-tab selected" id="main-tab">
-          Main
-        </div>
-        <div class="menu-tab" id="scripts-tab">
-          Scripts
-        </div>
-        <div class="menu-tab" id="settings-tab">
-          Settings
-        </div>
-      </div>
-      <div class="menu-tabs" id="player-tabs" style="display: none;">
-        <div class="menu-tab selected" id="player-main-tab">
-          Player
-        </div>
-        <div class="menu-tab" id="player-movement-tab">
-          Movement
-        </div>
-      </div>
-      <div class="menu-tabs" id="misc-tabs" style="display: none;">
-        <div class="menu-tab selected" id="misc-main-tab">
-          Misc
-        </div>
-        <div class="menu-tab" id="misc-settings-tab">
-          Extra Options
+
+  <div class="bg-wrap">
+    <div class="animated-gradient"></div>
+    <div class="scan-grid"></div>
+  </div>
+
+  <!-- mouse trails canvas -->
+  <canvas id="trailCanvas"></canvas>
+
+  <!-- Boot / Typewriter overlay (visible initially) -->
+  <div id="bootOverlay">
+    <div class="boot-box neon-border">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+        <!-- Animated SVG logo -->
+        <svg id="svgLogo" viewBox="0 0 100 100" width="48" height="48">
+          <defs>
+            <linearGradient id="g1" x1="0" x2="1">
+              <stop offset="0%" stop-color="#a870ff"/>
+              <stop offset="100%" stop-color="#5be8c4"/>
+            </linearGradient>
+          </defs>
+          <circle cx="50" cy="50" r="28" fill="none" stroke="url(#g1)" stroke-width="6" stroke-linecap="round" stroke-dasharray="170" stroke-dashoffset="170">
+            <animate attributeName="stroke-dashoffset" from="170" to="0" dur="1.1s" fill="freeze"/>
+          </circle>
+          <path d="M30 65 C45 40 55 40 70 65" fill="none" stroke="url(#g1)" stroke-width="3" stroke-linecap="round" opacity="0.95" stroke-dasharray="60" stroke-dashoffset="60">
+            <animate attributeName="stroke-dashoffset" from="60" to="0" dur="0.9s" begin="0.5s" fill="freeze"/>
+          </path>
+        </svg>
+        <div>
+          <div style="font-weight:700;font-size:18px">Scintilla Loader</div>
+          <div class="muted2">Initializing secure injection</div>
         </div>
       </div>
-      <div class="menu-tabs" id="scripts-tabs" style="display: none;">
-        <div class="menu-tab selected" id="scripts-main-tab">
-          Scripts
-        </div>
-        <div class="menu-tab" id="scripts-Built-tab">
-          Built-In
-        </div>
-        <div class="menu-tab" id="scripts-misc-tab">
-          Misc
-        </div>
-      </div>
-      <div class="menu-tabs" id="Force-tabs" style="display: none;">
-        <div class="menu-tab selected" id="Force-main-tab">
-          Force Emote
-        </div>
-      </div>
-      <div class="menu-tabs" id="vehicle-tabs" style="display: none;">
-        <div class="menu-tab selected" id="vehicle-main-tab">
-          Vehicle
-        </div>
-        <div class="menu-tab" id="vehicle-spawner-tab">
-          Mods
-        </div>
-      </div>
-      <div class="menu-tabs" id="teleport-tabs" style="display: none;">
-        <div class="menu-tab selected" id="teleport-main-tab">
-          Teleport
-        </div>
-        <div class="menu-tab" id="teleport-player-tab">
-          Player
-        </div>
-      </div>
-      <div class="menu-tabs" id="weapons-tabs" style="display: none;">
-        <div class="menu-tab selected" id="weapons-main-tab">
-          Weapon
-        </div>
-        <div class="menu-tab" id="weapons-spawner-tab">
-          Spawner
-        </div>
-      </div>
-      <div class="menu-tabs" id="model-tabs" style="display: none;">
-        <div class="menu-tab selected" id="model-main-tab">
-          Model
-        </div>
-      </div>
-      <div class="menu-tabs" id="outfits-tabs" style="display: none;">
-        <div class="menu-tab selected" id="outfits-main-tab">
-          Outfits
-        </div>
-        <div class="menu-tab" id="outfits-upper-tab">
-          Clothing
-        </div>
-        <div class="menu-tab" id="outfits-lower-tab">
-          Props
-        </div>
-      </div>
-      <div class="menu-tabs" id="world-tabs" style="display: none;">
-        <div class="menu-tab selected" id="world-main-tab">
-          World
-        </div>
-        <div class="menu-tab" id="world-atmosphere-tab">
-          Atmosphere
-        </div>
-      </div>
-      <div class="menu-tabs" id="server-tabs" style="display: none;">
-        <div class="menu-tab selected" id="server-main-tab">
-          Server
-        </div>
-        <div class="menu-tab" id="server-destoryer-tab">
-          Destroyer
-        </div>
-      </div>
-      <div class="menu-items-container" id="menu-items-container">
-        <div class="menu-items" id="main-items">
-          <div class="menu-item" id="player-options-toggle">
-            <svg width="18" height="18" viewbox="0 0 24 24">
-            <path fill="currentColor" d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"></path></svg> Player
-          </div>
-          <div class="menu-item" id="vehicle-options-toggle">
-            <svg version="1.0" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewbox="0 0 512 512" preserveaspectratio="xMidYMid meet">
-            <g transform="translate(0,512) scale(0.1,-0.1)" fill="currentColor" stroke="none">
-              <path d="M2595 4190 c-520 -43 -975 -365 -1186 -839 -30 -66 -39 -99 -39 -141 0 -204 303 -470 825 -725 754 -367 1562 -512 1776 -318 48 44 61 68 94 170 44 141 56 214 61 388 9 258 -27 435 -131 652 -225 470 -661 770 -1180 813 -66 5 -122 9 -125 8 -3 0 -46 -4 -95 -8z"></path>
-              <path d="M961 3849 c-504 -38 -836 -216 -933 -497 -29 -85 -31 -243 -5 -342 21 -79 111 -267 168 -352 104 -154 301 -364 482 -515 746 -621 1896 -1095 2907 -1198 206 -21 623 -16 765 9 280 49 481 136 609 261 245 240 215 592 -84 990 -97 129 -255 292 -405 417 l-130 109 -12 -113 c-20 -180 -67 -367 -118 -468 -101 -200 -342 -290 -697 -261 -346 28 -756 139 -1174 316 -612 260 -1030 575 -1134 852 -27 73 -36 173 -21 241 23 107 162 363 264 485 29 35 37 51 28 56 -13 8 -259 22 -351 20 -30 -1 -102 -5 -159 -10z m-451 -529 c121 -62 78 -221 -70 -260 -138 -37 -262 70 -206 178 47 90 181 130 276 82z m1803 -1521 c43 -12 111 -68 133 -110 8 -16 14 -49 14 -75 0 -40 -5 -51 -38 -84 -29 -30 -49 -40 -87 -46 -91 -13 -191 30 -236 102 -29 47 -31 117 -4 158 37 56 131 80 218 55z m2429 -138 c86 -55 124 -180 75 -252 -51 -76 -149 -72 -228 11 -145 149 -18 349 153 241z"></path>
-            </g></svg> Vehicle
-          </div>
-          <div class="menu-item" id="teleport-options-toggle">
-            <svg width="18" height="18" viewbox="0 0 24 24">
-            <path fill="currentColor" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5S10.62 6.5 12 6.5 14.5 7.62 14.5 9 13.38 11.5 12 11.5z"></path></svg> Teleport
-          </div>
-          <div class="menu-item" id="weapons-options-toggle">
-            <svg version="1.0" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewbox="0 0 512 512" preserveaspectratio="xMidYMid meet">
-            <g transform="translate(0,512) scale(0.1,-0.1)" fill="currentColor" stroke="none">
-              <path d="M4560 5100 c-11 -11 -20 -29 -20 -39 0 -18 65 -200 75 -210 4 -4 163 128 184 153 10 11 -6 24 -83 65 -104 56 -126 61 -156 31z"></path>
-              <path d="M4753 4803 c-87 -75 -211 -183 -275 -240 l-116 -103 -138 -7 -137 -6 -77 -66 c-197 -171 -280 -245 -280 -251 0 -6 97 -121 224 -265 38 -44 73 -83 76 -88 7 -8 1054 899 1079 934 20 29 8 54 -73 149 -56 65 -75 80 -97 80 -22 0 -64 -31 -186 -137z"></path>
-              <path d="M3523 4041 c-26 -21 -169 -145 -318 -276 l-270 -237 -57 5 c-48 4 -62 1 -85 -16 -42 -32 -337 -290 -345 -301 -4 -6 -10 -38 -14 -73 l-6 -62 -564 -491 c-420 -367 -564 -499 -568 -519 -3 -14 -8 -85 -12 -158 l-6 -131 -90 -78 -90 -78 4 -48 5 -48 -104 -91 c-101 -88 -104 -91 -135 -80 -69 24 -62 29 -468 -325 -212 -185 -388 -341 -392 -347 -18 -28 -4 -56 60 -127 37 -41 136 -155 220 -253 183 -212 234 -263 287 -288 52 -24 86 -24 135 1 55 28 111 103 236 315 262 444 450 736 677 1053 l109 152 426 373 c235 204 539 470 676 590 l250 217 86 -6 86 -7 62 52 c68 56 86 82 77 110 -3 10 -30 46 -60 81 -43 50 -52 66 -43 77 6 7 158 142 339 299 180 157 330 295 333 307 7 29 -5 46 -167 232 -157 180 -191 215 -211 215 -8 0 -36 -17 -63 -39z"></path>
-              <path d="M2726 2251 c-93 -81 -169 -152 -170 -157 -1 -13 122 -96 214 -143 99 -52 260 -106 374 -126 116 -20 152 -19 175 4 21 21 131 342 131 383 0 41 -24 58 -84 58 -118 0 -345 58 -433 110 -19 11 -35 20 -36 19 -1 0 -78 -67 -171 -148z"></path>
-              <path d="M2302 1879 c-40 -34 -72 -65 -72 -69 0 -4 24 -33 53 -64 l52 -58 42 39 c63 58 68 121 14 191 l-17 24 -72 -63z"></path>
-              <path d="M1990 1610 c-128 -113 -210 -195 -210 -209 0 -17 335 -388 366 -405 57 -31 88 -17 216 93 63 55 119 111 126 126 13 28 15 70 4 97 -8 20 -353 418 -362 417 -3 0 -66 -54 -140 -119z"></path>
-            </g></svg> Weapons
-          </div>
-          <div class="menu-item" id="model-options-toggle">
-            <svg version="1.0" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewbox="0 0 512 512" preserveaspectratio="xMidYMid meet">
-            <g transform="translate(512,512) scale(-0.1,-0.1)" fill="currentColor" stroke="none">
-              <path d="M1150 5105 c-19 -9 -44 -25 -56 -36 l-21 -20 -37 25 c-134 90 -320 -10 -319 -173 0 -41 7 -70 26 -108 l27 -53 -62 -62 c-35 -35 -74 -84 -88 -110 l-25 -47 -262 -123 -263 -122 158 -92 c86 -51 163 -96 170 -101 11 -6 5 -25 -25 -88 -33 -69 -38 -89 -38 -150 1 -114 59 -211 157 -261 l48 -24 0 -363 c0 -199 5 -424 10 -499 34 -472 233 -898 572 -1224 269 -258 511 -382 916 -470 l22 -4 0 -299 c0 -420 18 -401 -367 -401 l-253 0 0 -150 0 -150 525 0 c345 0 542 4 577 11 131 28 253 123 309 244 43 91 49 144 49 454 l0 287 98 27 c110 31 319 130 435 206 l78 51 240 -20 c132 -11 250 -20 261 -20 21 0 21 2 14 183 -4 100 -9 215 -13 255 l-6 72 217 0 216 0 0 24 c0 13 -18 135 -40 272 -21 136 -38 250 -36 251 2 2 138 12 302 23 164 10 300 19 301 20 1 0 -81 120 -182 268 l-184 267 152 145 c84 79 185 176 224 215 l73 70 -230 120 c-127 66 -230 124 -230 130 0 5 51 174 114 375 62 201 112 366 111 368 -2 3 -596 -302 -1621 -830 l-291 -150 121 -122 c214 -214 358 -455 432 -724 l23 -82 -37 -16 c-157 -66 -497 -160 -693 -190 -150 -23 -425 -23 -563 0 -394 66 -697 247 -920 550 -49 65 -56 80 -45 91 8 7 64 44 126 83 l112 71 47 -66 c295 -413 844 -551 1496 -376 l97 26 -30 59 c-45 88 -105 183 -172 273 -70 92 -255 281 -339 346 -46 36 -139 156 -496 640 -242 328 -443 602 -447 609 -4 7 12 52 36 103 38 80 44 101 44 159 0 58 -4 72 -30 110 -43 60 -105 93 -175 92 l-55 0 -25 50 c-34 70 -88 106 -166 112 -40 3 -70 0 -94 -11z m1448 -4399 c2 -262 1 -282 -18 -321 -29 -60 -78 -85 -170 -85 -65 0 -71 2 -64 18 5 9 10 159 12 332 1 173 5 321 7 328 3 9 33 12 117 10 l113 -3 3 -279z"></path>
-            </g></svg> Model Changer
-          </div>
-          <div class="menu-item" id="outfits-options-toggle">
-            <svg version="1.0" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewbox="0 0 512 512" preserveaspectratio="xMidYMid meet">
-            <g transform="translate(512,512) scale(-0.1,-0.1)" fill="currentColor" stroke="none">
-              <path d="M1640 4779 c-123 -26 -348 -83 -455 -116 -86 -25 -261 -100 -620 -265 -275 -127 -508 -238 -519 -247 -24 -21 -46 -65 -46 -91 0 -27 433 -886 462 -917 41 -43 69 -40 326 36 132 39 242 71 246 71 3 0 6 -631 7 -1402 0 -1060 3 -1411 12 -1437 7 -19 25 -44 40 -55 l28 -21 1433 0 c1555 0 1464 -3 1503 54 17 24 18 110 21 1444 1 779 5 1417 8 1417 4 0 114 -32 246 -71 263 -78 288 -80 331 -30 13 15 121 223 241 461 240 477 239 473 179 531 -41 39 -979 469 -1122 514 -226 71 -518 137 -563 128 -43 -8 -75 -46 -94 -109 -69 -241 -244 -438 -464 -523 -285 -110 -608 -43 -821 171 -95 96 -146 186 -214 380 -25 71 -77 95 -165 77z"></path>
-              <path d="M2096 4664 c58 -139 188 -250 339 -290 64 -18 186 -18 250 0 137 36 263 136 322 256 18 36 30 66 29 68 -2 1 -57 -7 -122 -20 -102 -19 -152 -22 -354 -22 -201 0 -252 3 -352 22 -64 12 -119 22 -122 22 -3 0 2 -16 10 -36z"></path>
-            </g></svg> Outfits
-          </div>
-          <div class="menu-item" id="world-options-toggle">
-            <svg width="18" height="18" viewbox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" fill="currentcolor" stroke="currentcolor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="32" cy="32" r="30" fill="#be90d4"></circle>
-            <line x1="2" y1="32" x2="62" y2="32" stroke="currentColor" stroke-opacity="0.3" stroke-width="1.5"></line>
-            <path d="M32 2 C20 16, 20 48, 32 62 C44 48, 44 16, 32 2" stroke="currentColor" stroke-opacity="0.3" stroke-width="1.5" fill="none"></path>
-            <path d="M16 18 C22 14, 34 14, 38 18 C42 22, 38 30, 34 34 C30 38, 22 38, 20 32 C18 28, 16 24, 16 18 Z" fill="currentColor" fill-opacity="0.3"></path>
-            <path d="M42 40 C46 38, 52 38, 52 44 C52 50, 46 50, 42 46 C40 44, 40 42, 42 40 Z" fill="currentColor" fill-opacity="0.3"></path></svg> World
-          </div>
-          <div class="menu-item" id="server-options-toggle">
-            <svg width="18" height="18" viewbox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentcolor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="6" y="6" width="52" height="14" rx="2" ry="2" fill="#be90d4"></rect>
-            <circle cx="12" cy="13" r="2" fill="#22ff22"></circle>
-            <circle cx="18" cy="13" r="2" fill="#ffcc00"></circle>
-            <circle cx="24" cy="13" r="2" fill="#ff4444"></circle>
-            <line x1="30" y1="13" x2="50" y2="13" stroke="#FFFFFF" stroke-width="1"></line>
-            <rect x="6" y="25" width="52" height="14" rx="2" ry="2" fill="#be90d4"></rect>
-            <circle cx="12" cy="32" r="2" fill="#22ff22"></circle>
-            <circle cx="18" cy="32" r="2" fill="#ffcc00"></circle>
-            <circle cx="24" cy="32" r="2" fill="#ff4444"></circle>
-            <line x1="30" y1="32" x2="50" y2="32" stroke="#FFFFFF" stroke-width="1"></line>
-            <rect x="6" y="44" width="52" height="14" rx="2" ry="2" fill="#be90d4"></rect>
-            <circle cx="12" cy="51" r="2" fill="#22ff22"></circle>
-            <circle cx="18" cy="51" r="2" fill="#ffcc00"></circle>
-            <circle cx="24" cy="51" r="2" fill="#ff4444"></circle>
-            <line x1="30" y1="51" x2="50" y2="51" stroke="#FFFFFF" stroke-width="1"></line></svg> Server
-          </div>
-        </div>
-        <div class="menu-items" id="scripts-items" style="display: none;">
-          <div class="menu-item" id="scripts-options-toggle">
-            <svg version="1.0" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewbox="0 0 512 512" preserveaspectratio="xMidYMid meet">
-            <g transform="translate(0,512) scale(0.1,-0.1)" fill="#be90d4" stroke="none">
-              <path d="M361 5109 c-172 -34 -318 -182 -351 -358 -14 -74 -14 -4308 0 -4382 34 -180 179 -325 359 -359 74 -14 3088 -14 3162 0 180 34 325 179 359 359 6 33 10 313 10 735 l0 680 573 576 c530 532 575 580 601 638 58 133 57 259 -3 388 -80 170 -283 278 -466 247 -140 -24 -174 -49 -452 -326 l-253 -251 0 611 c0 366 -4 632 -10 664 -23 125 -52 163 -334 445 -282 282 -320 311 -445 334 -67 12 -2686 12 -2750 -1z m2339 -680 c0 -387 0 -392 22 -431 44 -78 45 -78 488 -78 l390 0 0 -583 0 -582 -340 -340 -340 -340 -115 -346 c-63 -190 -115 -359 -115 -375 1 -69 76 -144 145 -144 48 0 714 226 742 251 l23 22 0 -532 c0 -513 -1 -533 -20 -571 -13 -26 -34 -47 -60 -60 -39 -20 -56 -20 -1570 -20 -1483 0 -1532 1 -1568 19 -22 11 -46 35 -60 59 l-22 40 0 2143 0 2144 24 39 c49 81 -51 75 1234 76 l1142 0 0 -391z m377 381 c37 -14 491 -466 509 -507 8 -18 14 -44 14 -58 l0 -25 -300 0 -300 0 0 300 0 300 24 0 c14 0 37 -5 53 -10z m1663 -1490 c43 -22 80 -80 80 -126 0 -48 -37 -107 -117 -186 l-78 -78 -108 108 -107 107 82 82 c46 45 97 89 113 97 41 22 88 20 135 -4z m-690 -965 l-360 -360 -107 108 -108 107 360 360 360 360 107 -107 108 -108 -360 -360z m-680 -470 l105 -105 -40 -39 c-34 -33 -62 -46 -194 -90 -85 -28 -156 -49 -158 -48 -1 2 20 73 48 158 42 126 58 161 87 192 20 20 39 37 42 37 3 0 52 -47 110 -105z"></path>
-              <path d="M681 3601 c-42 -22 -81 -85 -81 -130 0 -48 38 -110 82 -132 36 -18 77 -19 1118 -19 1063 0 1081 0 1120 20 45 23 80 80 80 130 0 50 -35 107 -80 130 -39 20 -56 20 -1122 20 -1023 -1 -1085 -2 -1117 -19z"></path>
-              <path d="M681 3001 c-42 -22 -81 -85 -81 -130 0 -48 38 -110 82 -132 36 -18 71 -19 818 -19 763 0 782 0 820 20 45 23 80 80 80 130 0 50 -35 107 -80 130 -38 20 -57 20 -822 20 -735 -1 -785 -2 -817 -19z"></path>
-              <path d="M681 2401 c-42 -22 -81 -85 -81 -130 0 -48 38 -110 82 -132 36 -18 71 -19 818 -19 763 0 782 0 820 20 45 23 80 80 80 130 0 50 -35 107 -80 130 -38 20 -57 20 -822 20 -735 -1 -785 -2 -817 -19z"></path>
-              <path d="M681 1801 c-42 -22 -81 -85 -81 -130 0 -48 38 -110 82 -132 36 -18 71 -19 818 -19 763 0 782 0 820 20 45 23 80 80 80 130 0 50 -35 107 -80 130 -38 20 -57 20 -822 20 -735 -1 -785 -2 -817 -19z"></path>
-              <path d="M1881 881 c-42 -22 -81 -85 -81 -130 0 -48 38 -110 82 -132 35 -18 66 -19 518 -19 462 0 482 1 520 20 45 23 80 80 80 130 0 50 -35 107 -80 130 -38 19 -57 20 -522 20 -446 -1 -486 -2 -517 -19z"></path>
-            </g></svg> Scripts
-          </div>
-          <div class="menu-item" id="Force-options-toggle">
-            <svg version="1.0" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewbox="0 0 512 512" preserveaspectratio="xMidYMid meet">
-            <g transform="translate(-100,512) scale(0.1,-0.1)" fill="currentColor" stroke="none" fill="currentColor" stroke="none">
-              <path d="M1958 4630 c-20 -11 -46 -33 -57 -49 -30 -42 -86 -215 -118 -366 -25 -121 -27 -147 -28 -375 0 -195 4 -265 18 -345 37 -202 123 -413 307 -755 124 -231 135 -268 135 -455 0 -138 -2 -156 -28 -230 -16 -44 -61 -136 -101 -205 -111 -190 -119 -206 -180 -342 -101 -229 -187 -512 -231 -759 -13 -76 -14 -104 -6 -137 31 -115 160 -173 269 -121 58 29 84 72 122 204 121 420 301 774 490 965 70 70 161 140 183 140 12 0 2 -190 -19 -380 -21 -185 -57 -376 -106 -560 -50 -190 -53 -209 -38 -255 40 -121 192 -173 300 -101 52 34 65 61 155 327 231 679 319 1142 295 1546 -18 284 -88 504 -206 649 -25 31 -38 57 -41 87 -5 41 -2 46 93 167 261 331 434 644 496 895 18 74 19 91 8 130 -25 88 -126 148 -211 125 -71 -19 -104 -61 -154 -195 -119 -318 -310 -624 -450 -720 -83 -56 -160 -79 -265 -79 -103 0 -177 21 -257 73 -76 49 -127 109 -171 200 -33 69 -36 83 -40 186 -5 139 8 250 55 436 41 167 40 199 -10 256 -56 64 -137 80 -209 43z"></path>
-              <path d="M2555 4448 c-220 -28 -387 -256 -346 -474 29 -158 140 -285 289 -330 64 -20 182 -19 245 2 115 38 201 115 254 230 25 53 28 70 28 164 0 94 -3 111 -28 164 -83 178 -247 269 -442 244z"></path>
-              <path d="M1416 4118 c-9 -12 -16 -37 -16 -55 0 -32 -2 -33 -38 -33 -43 0 -62 -14 -62 -47 0 -26 27 -43 69 -43 28 0 31 -3 31 -31 0 -42 17 -69 43 -69 33 0 47 19 47 62 0 36 1 38 33 38 36 0 77 24 77 45 0 25 -31 45 -71 45 -39 0 -39 0 -39 39 0 64 -44 93 -74 49z"></path>
-              <path d="M3812 3728 c-7 -7 -12 -31 -12 -55 l0 -43 -43 0 c-48 0 -67 -13 -67 -47 0 -27 27 -43 74 -43 36 0 36 0 36 -45 0 -46 19 -68 50 -57 23 8 30 23 30 65 0 36 1 37 39 37 40 0 71 20 71 45 0 25 -31 45 -71 45 l-39 0 0 45 c0 34 -5 47 -19 55 -25 13 -34 13 -49 -2z"></path>
-              <path d="M1185 3311 c-46 -27 -69 -69 -69 -124 0 -80 62 -142 144 -142 110 0 178 114 126 213 -35 67 -135 94 -201 53z"></path>
-              <path d="M3782 3138 c-19 -19 -14 -44 14 -78 l27 -31 -27 -28 c-31 -32 -34 -66 -6 -81 23 -12 45 -4 74 29 l18 20 38 -30 c31 -25 42 -29 58 -20 16 9 32 31 32 46 0 3 -13 20 -30 38 l-30 34 21 19 c32 29 41 51 29 74 -15 28 -49 25 -81 -6 l-28 -27 -31 27 c-34 28 -59 33 -78 14z"></path>
-              <path d="M1863 2584 c-75 -37 -99 -152 -46 -215 73 -86 195 -74 243 26 61 127 -69 252 -197 189z"></path>
-              <path d="M3532 2488 c-20 -20 -14 -50 15 -80 l27 -28 -27 -28 c-29 -30 -35 -60 -15 -80 19 -19 40 -14 73 18 l31 30 29 -30 c33 -34 70 -39 85 -11 14 27 14 26 -21 66 l-32 36 32 32 c35 37 38 49 15 71 -22 23 -39 20 -77 -14 l-34 -29 -28 29 c-31 32 -54 37 -73 18z"></path>
-              <path d="M1362 1918 c-6 -6 -12 -31 -12 -54 l0 -43 -46 -3 c-88 -6 -88 -70 0 -76 l46 -3 0 -43 c0 -50 18 -71 54 -62 22 5 25 13 28 54 l3 47 40 3 c50 4 67 18 63 51 -3 23 -8 27 -53 31 l-50 5 -5 50 c-4 44 -8 50 -30 53 -14 2 -31 -3 -38 -10z"></path>
-              <path d="M3595 1783 c-83 -22 -130 -127 -90 -202 28 -54 71 -81 130 -81 43 0 60 5 85 26 58 49 74 111 46 178 -24 58 -107 96 -171 79z"></path>
-            </g></svg> Force Emote
-          </div>
-        </div>
-        <div class="menu-items" id="settings-items" style="display: none;">
-          <div class="menu-item">
-            <svg version="1.0" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewbox="0 0 512 512" preserveaspectratio="xMidYMid meet">
-            <g transform="translate(0,512) scale(0.1,-0.1)" fill="currentColor" stroke="none" fill="currentColor" stroke="none">
-              <path d="M2500 5110 c-14 -4 -88 -47 -165 -95 -368 -228 -916 -453 -1487 -609 -245 -66 -283 -92 -309 -205 -10 -46 7 -540 26 -736 51 -527 169 -1023 356 -1495 74 -186 256 -546 364 -718 281 -447 643 -838 1069 -1152 189 -139 229 -137 448 27 699 526 1194 1224 1490 2103 135 403 225 846 268 1324 16 182 30 607 21 646 -21 94 -79 147 -188 174 -598 148 -1258 416 -1650 668 -118 76 -171 91 -243 68z m458 -1716 c110 -45 162 -174 113 -279 -10 -22 -69 -89 -130 -150 -96 -95 -111 -114 -111 -142 0 -36 21 -53 67 -53 39 -1 103 -32 135 -66 58 -62 74 -155 39 -229 -12 -26 -139 -159 -372 -392 -374 -371 -376 -373 -467 -373 -105 0 -202 101 -202 210 0 71 30 117 149 235 96 95 111 114 111 142 0 36 -21 53 -65 53 -14 0 -42 7 -63 16 -110 45 -162 174 -113 279 29 61 705 732 757 750 52 19 106 18 152 -1z"></path>
-            </g></svg> Safe Mode
-          </div>
-          <div class="menu-item" data-callback="uninject">
-            <svg version="1.0" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewbox="0 0 512.000000 512.000000" preserveaspectratio="xMidYMid meet">
-            <g transform="translate(0.000000,512.000000) scale(0.100000,-0.100000)" fill="currentColor" stroke="none">
-              <path d="M4124 5090 c-12 -5 -51 -36 -87 -70 -134 -125 -141 -219 -24 -337 l51 -53 -49 -50 c-27 -27 -54 -50 -61 -50 -6 0 -33 24 -59 53 -175 194 -205 217 -281 217 -60 0 -97 -23 -185 -116 -62 -66 -84 -116 -74 -172 8 -47 21 -71 68 -121 20 -22 37 -44 37 -49 0 -5 -266 -270 -592 -588 -903 -883 -871 -850 -903 -918 -55 -120 -41 -282 35 -382 16 -22 30 -44 30 -50 0 -10 -91 -102 -116 -117 -6 -4 -25 0 -41 8 -16 8 -39 12 -51 8 -23 -6 -344 -380 -409 -475 -48 -72 -60 -145 -38 -235 l17 -73 -274 -267 c-665 -650 -721 -708 -721 -744 0 -21 7 -38 22 -50 13 -10 20 -24 18 -31 -4 -10 -6 -10 -6 0 -1 7 -5 10 -11 7 -5 -3 -10 -1 -10 4 0 6 -5 11 -11 11 -5 0 -8 -4 -5 -9 4 -5 0 -12 -6 -14 -10 -4 -10 -6 0 -6 21 -1 3 -21 -18 -21 -11 0 -27 -11 -36 -25 -19 -29 -33 -33 -30 -7 1 9 17 23 34 31 30 14 46 51 22 51 -5 0 -9 -5 -7 -11 1 -6 -6 -16 -15 -22 -13 -9 -21 -7 -36 6 -11 10 -23 17 -28 16 -20 -3 -26 2 -16 14 7 8 7 18 1 27 -7 12 -11 12 -17 2 -5 -7 -13 -12 -18 -11 -15 5 -88 -12 -102 -23 -9 -8 -9 -14 -1 -25 10 -11 15 -11 35 2 22 14 42 6 30 -14 -8 -12 -100 -4 -104 9 -2 5 -8 10 -13 10 -6 0 -8 -4 -5 -9 4 -5 -3 -7 -14 -4 -14 4 -20 1 -18 -8 2 -8 -2 -13 -8 -12 -6 1 -11 -4 -11 -12 0 -8 5 -11 11 -7 6 3 16 7 21 8 6 1 17 3 25 5 18 5 26 -39 10 -55 -8 -8 -13 -7 -20 4 -5 8 -21 15 -35 15 -29 1 -34 -11 -7 -18 16 -4 16 -5 0 -6 -19 -1 -27 -51 -8 -51 6 0 10 5 10 12 0 6 3 8 7 5 3 -4 15 0 25 10 10 9 18 11 18 6 0 -6 -16 -25 -35 -42 -32 -28 -51 -72 -23 -55 7 5 9 1 6 -13 -4 -16 -2 -19 13 -16 10 3 16 10 12 16 -4 6 3 8 20 3 16 -4 29 -1 34 6 12 21 12 39 0 35 -7 -3 -11 -10 -10 -16 2 -6 -2 -11 -8 -11 -6 0 -9 8 -7 18 2 11 13 17 31 18 26 1 31 -4 28 -36 0 -8 3 -21 8 -29 8 -12 12 -12 25 -2 18 15 36 7 36 -16 0 -9 6 -13 15 -9 19 7 19 -4 -1 -32 -14 -21 -14 -22 6 -22 13 0 25 10 33 28 6 15 19 32 27 39 8 7 11 13 6 13 -5 0 1 11 14 25 13 14 20 25 16 25 -5 0 -3 6 3 14 13 15 -1 32 -18 22 -5 -3 -12 1 -15 10 -3 8 -10 12 -16 9 -5 -3 -10 0 -10 7 0 9 -3 9 -10 -2 -6 -10 -10 -11 -10 -3 0 10 -6 10 -25 1 -13 -6 -22 -15 -18 -21 3 -6 1 -7 -5 -3 -7 4 -12 2 -12 -3 0 -6 -4 -11 -9 -11 -6 0 -9 9 -8 20 1 10 3 18 5 16 8 -9 54 49 56 70 1 17 4 20 18 13 22 -12 28 -11 28 1 0 6 -6 10 -14 10 -8 0 -17 4 -20 9 -3 5 7 8 24 7 16 -1 32 3 35 8 3 6 2 0 -2 -14 -7 -28 -31 -50 -48 -43 -7 2 -12 -3 -12 -11 0 -8 4 -13 8 -10 4 2 9 -1 11 -8 3 -7 9 -8 19 -3 19 13 39 15 39 5 0 -4 -8 -11 -17 -14 -19 -8 -9 -21 25 -31 22 -6 23 -5 12 15 -11 20 -10 21 9 11 17 -9 19 -16 11 -36 -5 -14 -6 -25 -2 -25 4 0 0 -5 -8 -10 -11 -7 -12 -12 -3 -21 15 -15 34 -3 26 17 -5 14 -3 15 15 5 l21 -11 -20 -35 c-12 -19 -25 -35 -31 -35 -5 0 -6 -6 -2 -12 4 -7 4 -10 -1 -6 -4 4 -15 2 -23 -5 -11 -8 -14 -8 -9 0 4 6 4 13 0 16 -5 2 -1 2 7 0 12 -3 12 -1 3 8 -18 18 -40 4 -40 -27 0 -16 -6 -30 -12 -32 -6 -2 -11 -10 -11 -18 0 -8 -4 -14 -8 -14 -5 0 -14 -11 -20 -25 -6 -14 -16 -25 -22 -25 -6 0 -8 6 -4 12 6 10 5 10 -7 1 -13 -11 -15 -9 -14 10 1 16 8 22 25 22 14 0 24 7 26 18 2 19 -21 24 -31 6 -4 -6 -13 -8 -21 -5 -7 3 -18 -3 -24 -12 -9 -16 -11 -16 -21 1 -5 9 -15 15 -20 11 -5 -3 -8 0 -7 7 5 21 -23 22 -29 0 -4 -17 -8 -19 -20 -9 -11 9 -16 9 -24 -3 -5 -8 -9 -9 -9 -4 0 6 -5 3 -10 -6 -13 -22 -6 -53 13 -57 10 -2 17 1 17 7 0 6 -6 8 -14 5 -11 -4 -13 0 -9 15 4 16 9 19 18 11 7 -6 21 -8 31 -4 13 4 15 3 7 -3 -10 -7 -10 -12 0 -25 10 -15 14 -15 25 -2 7 8 8 14 2 14 -5 0 -10 8 -9 18 0 9 3 12 5 6 3 -7 13 -10 23 -7 11 3 27 -4 37 -15 11 -11 26 -21 34 -22 28 -4 60 0 57 8 -2 7 6 12 24 12 5 0 8 -3 6 -8 -3 -4 10 -8 29 -9 19 -1 34 3 34 9 0 6 -11 8 -25 6 -14 -3 -25 -1 -25 3 0 5 -7 9 -15 9 -20 0 -19 19 2 27 15 6 15 7 -3 14 -18 7 -18 8 3 8 12 1 24 -5 27 -11 5 -10 7 -10 12 1 5 9 11 3 21 -20 11 -27 16 -31 23 -19 6 9 13 11 18 5 4 -5 15 -11 26 -13 14 -3 17 1 12 13 -3 9 -2 13 4 10 6 -3 10 -2 10 4 0 5 -4 13 -10 16 -5 3 -10 13 -10 21 0 10 5 12 13 8 9 -6 9 -5 0 8 -7 8 -10 17 -8 20 5 4 -33 4 -43 -1 -1 0 4 -11 13 -24 14 -21 13 -23 -8 -24 -16 -2 -18 0 -8 7 12 7 11 11 -3 25 -21 21 -9 37 28 37 23 0 30 8 28 29 -1 4 3 20 7 37 5 17 6 47 1 66 -4 21 -4 36 1 36 5 0 9 11 9 25 0 14 -4 25 -10 25 -5 0 -10 -5 -10 -11 0 -5 -4 -7 -10 -4 -14 9 12 34 29 27 11 -4 13 1 8 26 -6 29 -4 32 18 32 20 0 135 107 521 486 l495 487 65 -22 c77 -25 108 -26 171 -5 55 18 87 42 350 251 206 164 220 182 191 234 -16 26 -15 27 46 88 34 33 66 61 72 61 6 0 23 -13 38 -29 15 -16 56 -42 89 -57 83 -37 193 -39 281 -4 64 25 -2 -38 1156 1093 l384 377 40 -46 c68 -78 137 -101 212 -69 54 22 170 140 190 191 21 55 14 114 -18 159 -19 26 -153 177 -205 231 -20 20 -17 26 37 79 l49 49 65 -62 c35 -34 76 -66 91 -72 74 -28 145 1 237 96 76 79 98 163 61 231 -19 33 -98 125 -216 249 -38 40 -77 83 -88 96 -39 44 -184 202 -252 274 -38 40 -76 81 -85 92 -99 113 -151 166 -178 182 -33 21 -111 26 -150 10z m126 -187 c64 -73 217 -239 290 -318 36 -38 70 -74 75 -80 6 -6 47 -52 92 -101 45 -49 91 -100 103 -114 12 -14 50 -54 84 -90 34 -36 66 -71 70 -78 6 -10 -9 -31 -45 -68 -49 -50 -83 -67 -91 -45 -1 5 -48 57 -103 116 -55 59 -111 120 -125 135 -14 15 -65 71 -115 125 -49 54 -97 106 -105 115 -19 21 -189 206 -252 274 -26 28 -48 58 -48 66 0 20 90 110 111 110 9 0 36 -21 59 -47z m-594 -278 c11 -13 47 -53 80 -88 32 -34 97 -105 144 -157 47 -52 116 -126 153 -166 38 -40 77 -83 88 -96 20 -22 46 -50 184 -198 33 -36 98 -107 145 -159 47 -52 109 -119 137 -150 29 -31 53 -63 53 -71 0 -17 -99 -120 -116 -120 -6 0 -33 24 -60 53 -26 28 -75 82 -108 118 -34 36 -99 107 -146 158 -95 105 -118 130 -199 216 -31 34 -94 103 -141 154 -47 52 -103 113 -125 136 -40 42 -194 210 -227 248 -10 11 -18 25 -18 31 0 16 102 116 119 116 9 0 25 -11 37 -25z m638 -250 c51 -55 127 -138 170 -184 l77 -85 -55 -54 -54 -55 -58 62 c-32 35 -66 72 -77 84 -22 25 -194 212 -219 239 -10 10 -18 21 -18 25 0 4 23 31 52 60 l51 52 20 -22 c10 -12 60 -67 111 -122z m-754 -271 c-41 -41 -200 -197 -353 -346 -271 -265 -278 -270 -297 -253 -11 10 -20 23 -20 29 0 6 156 165 348 353 l347 342 25 -25 25 -24 -75 -76z m252 -116 c47 -51 107 -117 134 -147 27 -30 75 -82 106 -115 32 -34 58 -64 58 -67 0 -5 -640 -635 -868 -854 l-84 -80 -56 60 c-85 90 -246 266 -281 305 -52 59 -51 66 25 135 38 35 71 59 74 54 3 -4 18 -13 34 -19 58 -22 110 44 81 104 l-16 31 348 342 c191 188 351 342 354 342 4 1 45 -41 91 -91z m418 -453 l23 -25 -24 -26 c-58 -62 -921 -899 -930 -903 -13 -4 -52 36 -47 48 4 11 941 930 949 931 3 0 16 -11 29 -25z m-1429 -131 l24 -26 -70 -63 -70 -64 -25 25 -24 24 64 65 c35 36 67 65 70 65 4 0 17 -12 31 -26z m-222 -267 c24 -29 78 -88 120 -133 42 -44 96 -103 120 -130 25 -27 72 -78 105 -114 131 -140 251 -273 258 -285 5 -8 -16 -35 -59 -75 l-67 -62 -25 29 c-13 15 -66 73 -117 128 -51 55 -101 110 -112 123 -11 12 -67 73 -125 135 -57 62 -133 145 -167 185 -35 39 -66 72 -70 72 -4 0 -15 12 -25 26 l-17 26 63 64 c35 35 66 64 69 63 3 0 25 -24 49 -52z m-348 -919 c38 -40 68 -75 69 -78 0 -3 -30 -35 -66 -70 l-65 -65 -69 75 c-38 41 -70 80 -70 85 0 9 118 123 129 125 2 0 35 -33 72 -72z m-204 -276 c46 -51 83 -96 81 -101 -7 -20 -371 -301 -404 -311 -117 -39 -219 101 -153 209 11 18 86 112 167 208 l146 174 39 -43 c21 -24 77 -85 124 -136z m-1622 -1604 c25 -11 28 -15 28 -43 0 -47 -5 -53 -32 -36 -13 8 -13 12 0 27 12 16 12 17 -1 10 -8 -4 -7 -1 3 7 11 9 14 18 8 21 -5 4 -12 2 -16 -3 -8 -14 -32 -3 -32 14 0 18 8 19 42 3z m-245 -37 c-21 -30 -53 -41 -64 -22 -11 17 5 39 25 34 10 -3 19 0 19 6 0 5 7 8 15 5 8 -4 15 -1 15 7 0 7 3 10 6 6 3 -3 -4 -20 -16 -36z m140 -25 c0 -3 -4 -8 -10 -11 -5 -3 -10 -1 -10 4 0 6 5 11 10 11 6 0 10 -2 10 -4z m-42 -20 c-10 -7 -18 -23 -18 -35 0 -26 -8 -27 -26 -3 -13 16 -15 16 -25 0 -12 -22 -29 -23 -29 -4 0 18 8 23 45 30 15 3 33 10 39 16 5 5 15 10 21 10 5 0 2 -7 -7 -14z m37 -26 c-3 -5 -14 -10 -23 -9 -14 0 -13 2 3 9 27 11 27 11 20 0z m50 -120 c3 -6 -1 -7 -9 -4 -18 7 -21 14 -7 14 6 0 13 -4 16 -10z"></path>
-              <path d="M320 484 c0 -8 -5 -14 -11 -14 -5 0 -8 -4 -5 -9 7 -11 56 0 55 13 0 5 4 12 11 16 6 4 -3 7 -19 8 -21 0 -31 -4 -31 -14z"></path>
-              <path d="M314 206 c-4 -11 -2 -21 7 -27 18 -11 24 5 10 28 -9 17 -10 17 -17 -1z"></path>
-              <path d="M102 188 c-7 -7 -8 -17 -1 -29 7 -15 6 -17 -6 -13 -8 4 -15 1 -15 -5 0 -17 37 -13 44 5 4 9 9 14 13 10 3 -3 -2 -15 -12 -26 -18 -19 -17 -20 1 -21 10 0 27 -2 36 -4 9 -2 24 8 33 21 8 13 11 24 5 24 -5 0 -10 -4 -10 -10 0 -21 -31 -9 -40 15 -5 14 -17 25 -25 25 -9 0 -13 5 -10 10 8 13 2 13 -13 -2z"></path>
-              <path d="M24 160 c3 -8 9 -23 12 -33 6 -16 8 -16 25 4 18 21 17 39 -2 39 -5 0 -9 -8 -9 -17 -1 -16 -2 -16 -16 2 -9 11 -14 13 -10 5z"></path>
-              <path d="M0 131 c0 -10 19 -25 25 -20 1 2 -3 10 -11 17 -8 7 -14 8 -14 3z"></path>
-              <path d="M133 15 c0 -8 4 -15 9 -15 4 0 8 4 8 9 0 6 -4 12 -8 15 -5 3 -9 -1 -9 -9z"></path>
-              <path d="M376 9 c3 -5 14 -7 24 -6 31 5 31 12 -1 13 -16 1 -26 -2 -23 -7z"></path>
-            </g></svg> Uninject
-          </div>
-          <div class="menu-item" id="misc-options-toggle">
-            <svg version="1.0" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewbox="0 0 512.000000 512.000000" preserveaspectratio="xMidYMid meet">
-            <g transform="translate(0.000000,512.000000) scale(0.100000,-0.100000)" fill="currentColor" stroke="none">
-              <path d="M2281 5104 c-80 -21 -149 -62 -212 -124 -95 -93 -139 -206 -139 -350 l0 -87 -87 -33 c-49 -18 -121 -48 -162 -67 l-75 -34 -55 55 c-140 136 -305 185 -476 141 -102 -27 -160 -69 -326 -234 -165 -166 -207 -224 -234 -326 -44 -171 5 -336 141 -475 l54 -56 -44 -99 c-24 -55 -54 -128 -66 -162 l-23 -63 -87 0 c-144 0 -256 -44 -351 -139 -116 -117 -139 -197 -139 -491 0 -295 22 -371 140 -491 93 -95 206 -139 350 -139 l87 0 33 -87 c18 -49 48 -121 67 -162 l34 -75 -55 -55 c-30 -31 -68 -78 -85 -106 -90 -144 -94 -334 -9 -484 42 -75 324 -357 399 -399 142 -80 319 -82 463 -4 28 15 80 55 117 89 l66 63 99 -43 c55 -24 127 -54 162 -67 l62 -22 0 -87 c0 -145 44 -258 139 -351 120 -118 196 -140 491 -140 294 0 374 23 491 139 95 95 139 207 139 352 l0 87 63 22 c34 13 106 43 161 67 l99 43 66 -63 c37 -34 89 -74 117 -89 141 -76 316 -76 458 0 67 36 360 328 403 402 81 139 83 319 5 464 -15 28 -55 80 -89 117 l-63 66 43 99 c24 55 54 127 67 162 l22 62 87 0 c148 0 256 43 351 139 118 120 140 196 140 491 0 295 -22 371 -140 491 -95 96 -203 139 -351 139 l-87 0 -22 63 c-13 34 -43 106 -67 161 l-43 99 63 66 c34 37 74 89 89 117 78 144 76 321 -4 463 -42 74 -334 366 -404 403 -150 81 -338 76 -479 -13 -27 -17 -75 -55 -106 -85 l-55 -55 -75 34 c-41 19 -113 49 -161 67 l-88 33 0 87 c0 144 -44 256 -139 351 -63 63 -131 101 -218 124 -79 21 -474 20 -552 -1z m516 -305 c29 -14 52 -35 68 -63 23 -40 25 -52 25 -184 0 -158 12 -209 59 -240 14 -10 85 -37 156 -61 72 -23 193 -74 270 -112 77 -38 150 -69 163 -69 48 0 99 34 196 130 104 102 133 120 191 120 60 0 88 -19 229 -158 141 -140 166 -175 166 -236 0 -59 -18 -88 -120 -192 -97 -98 -130 -148 -130 -197 0 -13 31 -87 70 -164 38 -78 88 -199 111 -269 24 -71 51 -141 61 -155 31 -47 82 -59 240 -59 132 0 144 -2 184 -25 75 -44 84 -78 84 -305 0 -227 -9 -261 -84 -305 -40 -23 -52 -25 -184 -25 -158 0 -209 -12 -240 -59 -10 -14 -37 -84 -61 -155 -23 -70 -73 -191 -111 -269 -39 -77 -70 -151 -70 -164 0 -49 33 -99 130 -197 102 -104 120 -133 120 -191 0 -60 -19 -87 -157 -227 -142 -143 -177 -168 -236 -168 -60 0 -88 18 -193 120 -98 97 -148 130 -198 130 -13 0 -87 -31 -163 -69 -76 -38 -196 -89 -268 -112 -71 -24 -142 -51 -156 -61 -47 -31 -59 -82 -59 -240 0 -132 -2 -144 -25 -184 -44 -75 -78 -84 -305 -84 -227 0 -261 9 -305 84 -23 40 -25 52 -25 184 0 158 -12 209 -59 240 -14 10 -84 38 -156 61 -71 24 -193 74 -269 112 -77 38 -150 69 -163 69 -49 0 -99 -33 -197 -130 -104 -102 -133 -120 -192 -120 -61 0 -96 25 -236 166 -139 141 -158 169 -158 229 0 58 18 87 120 191 97 98 130 148 130 197 0 13 -31 87 -70 164 -38 78 -88 199 -111 269 -24 71 -51 141 -61 155 -31 47 -82 59 -240 59 -132 0 -144 2 -184 25 -75 44 -84 78 -84 305 0 227 9 261 84 305 40 23 52 25 184 25 158 0 209 12 240 59 10 14 38 85 61 156 23 72 74 193 112 269 38 77 69 150 69 163 0 49 -33 99 -130 197 -102 104 -120 133 -120 192 0 61 25 96 166 236 141 139 169 158 229 158 58 0 87 -18 191 -120 98 -97 148 -130 197 -130 13 0 87 31 164 70 78 38 199 88 269 111 71 24 141 51 155 61 47 31 59 82 59 240 0 132 2 144 25 183 16 28 39 50 67 64 39 19 60 21 237 21 177 0 199 -2 238 -21z"></path>
-              <path d="M2335 3650 c-416 -90 -742 -398 -853 -808 -24 -88 -26 -114 -26 -282 0 -168 2 -194 26 -282 105 -387 409 -691 796 -796 88 -24 114 -26 282 -26 168 0 194 2 282 26 387 105 691 409 796 796 24 88 26 114 26 282 0 168 -2 194 -26 282 -105 387 -411 694 -793 794 -139 37 -376 43 -510 14z m412 -300 c370 -89 623 -409 623 -790 0 -454 -356 -810 -810 -810 -224 0 -415 79 -574 236 -271 269 -316 698 -106 1017 115 176 304 308 504 352 95 20 266 18 363 -5z"></path>
-            </g></svg> Misc
-          </div>
-        </div>
-        <div class="menu-items" id="scripts-options-items" style="display: none;">
-          <div class="menu-items" id="scripts-main-items">
-            <div class="menu-item" data-callback="add_item_to_inventory">
-              Add Item to Inventory
-            </div>
-            <div class="menu-item checkbox" data-callback="force_hands_up">
-              Force Hands up With F6
-            </div>
-            <div class="menu-item checkbox" data-callback="auto_rob_ox">
-              Auto-Rob Ox(Detected on Reaper)
-            </div>
-          </div>
-          <div class="menu-items" id="misc-Built-items" style="display: none;">
-            <div class="menu-item" data-callback="throw_entities">
-              Throw Cars/Props/Peds
-            </div>
-            <div class="menu-item" data-callback="earthquake">
-              Earthquake
-            </div>
-          </div>
-          <div class="menu-items" id="scripts-misc-items" style="display: none;">
-            <div class="menu-item" data-callback="block_logs">
-              Block Logs
-            </div>
-          </div>
-        </div>
-        <div class="menu-items" id="Force-options-items" style="display: none;">
-          <div class="menu-items" id="Force-main-items">
-            <div class="menu-item" data-callback="force_1">
-              Force 1
-            </div>
-            <div class="menu-item" data-callback="force_2">
-              Force 2
-            </div>
-          </div>
-        </div>
-        <div class="menu-items" id="misc-options-items" style="display: none;">
-          <div class="menu-items" id="misc-main-items">
-            <div class="menu-item checkbox" data-callback="toggle_move_resize">
-              Move & Resize Menu
-            </div>
-            <div class="menu-item" data-callback="save_config">
-              Save Config
-            </div>
-            <div class="menu-item" data-callback="load_config">
-              Load Config
-            </div>
-            <div class="menu-item checkbox" data-callback="show_bind_indicator">
-              Show Bind Indicator
-            </div>
-          </div>
-          <div class="menu-items" id="misc-extra-items" style="display: none;">
-            <div class="menu-item" data-callback="placeholder_action">
-              Damn you found a placeholder
-            </div>
-          </div>
-        </div>
-        <div class="menu-items" id="player-options-items" style="display: none;">
-          <div class="menu-items" id="player-main-items">
-            <div class="menu-item checkbox slider" data-callback="godmode" data-min="0" data-max="3" data-step="1" data-value="0" data-info="0:Safe 1:Basic 2:headshots 3:Full">
-              Godmode
-            </div>
-            <div class="menu-item" data-callback="fill_hp">
-              Fill Hp
-            </div>
-            <div class="menu-item" data-callback="fill_armour">
-              Fill Armour
-            </div>
-            <div class="menu-item checkbox" data-callback="invisible">
-              Invisible
-            </div>
-            <div class="menu-item checkbox" data-callback="one_punch">
-              One Punch
-            </div>
-          </div>
-          <div class="menu-items" id="player-movement-items" style="display: none;">
-            <div class="menu-item checkbox slider" data-callback="no-clip" data-min="1.0" data-max="10.0" data-step="0.5" data-value="1.0">
-              No-Clip
-            </div>
-            <div class="menu-item checkbox slider" data-callback="super_run" data-min="1" data-max="20" data-step="1" data-value="10">
-              Super Run
-            </div>
-            <div class="menu-item checkbox" data-callback="infinite_stamina">
-              Infinite Stamina
-            </div>
-            <div class="menu-item checkbox" data-callback="anti_tp">
-              Anti-tp
-            </div>
-          </div>
-        </div>
-        <div class="menu-items" id="vehicle-options-items" style="display: none;">
-          <div class="menu-items" id="vehicle-main-items">
-            <div class="menu-item checkbox slider" data-callback="vehicle_boost" data-min="20" data-max="1000" data-step="20" data-value="100">
-              Boost
-            </div>
-            <div class="menu-item checkbox slider" data-callback="easy_handling" data-min="0" data-max="10" data-step="1" data-value="0">
-              Easy Handling
-            </div>
-            <div class="menu-item checkbox" data-callback="seatbelt">
-              Seatbelt
-            </div>
-            <div class="menu-item checkbox slider" data-callback="vehicle_godmode" data-min="1" data-max="2" data-step="1" data-value="1" data-info="1:safe 2:Full">
-              Godmode
-            </div>
-            <div class="menu-item" data-callback="repair">
-              Repair
-            </div>
-            <div class="menu-item checkbox slider" data-callback="road_rage" data-min="1" data-max="2" data-step="1" data-value="1" data-info="1:Single 2:All">
-              Road Rage
-            </div>
-            <div class="menu-item checkbox" data-callback="ramp_handling">
-              Ramp Handling
-            </div>
-          </div>
-          <div class="menu-items" id="vehicle-spawner-items" style="display: none;">
-            <div class="menu-item" data-callback="spawn_vehicle_hash">
-              Spawn From Hash
-            </div>
-            <div class="menu-item checkbox" data-callback="rainbow_leds">
-              Rainbow leds
-            </div>
-            <div class="menu-item checkbox" data-callback="pull_players_from_vehicle" data-info="Press and hold F Nearby Player To Pull">
-              Pull Players From Whip
-            </div>
-          </div>
-        </div>
-        <div class="menu-items" id="teleport-options-items" style="display: none;">
-          <div class="menu-items" id="teleport-main-items">
-            <div class="menu-item" data-callback="tp_waypoint">
-              Tp to Waypoint
-            </div>
-            <div class="menu-item" data-callback="tp_coords">
-              Tp to Coords
-            </div>
-          </div>
-          <div class="menu-items" id="teleport-player-items" style="display: none;">
-            <div class="menu-item" data-callback="tp_player_look">
-              Tp to Player by Look
-            </div>
-            <div class="menu-item" data-callback="tp_player_id">
-              Tp to Player by Id
-            </div>
-            <div class="menu-item" data-callback="tp_player_name">
-              Tp to Player by Name
-            </div>
-          </div>
-        </div>
-        <div class="menu-items" id="weapons-options-items" style="display: none;">
-          <div class="menu-items" id="weapons-spawner-items" style="display: none;">
-            <div class="menu-item" data-callback="spawn_weapon_hash">
-              Spawn by Hash
-            </div>
-            <div class="menu-item checkbox" data-callback="spoof_weapon">
-              Spoof
-            </div>
-            <div class="menu-item" data-callback="add_ammo_clip">
-              Add Ammo to Clip
-            </div>
-            <div class="menu-item" data-callback="add_ammo_reserve">
-              Add Ammo to Reserve
-            </div>
-            <div class="menu-item" data-callback="set_ammo_clip">
-              Set Ammo to Clip
-            </div>
-            <div class="menu-item" data-callback="set_ammo_reserve">
-              Set Ammo to Reserve
-            </div>
-          </div>
-        </div>
-        <div class="menu-items" id="model-options-items" style="display: none;">
-          <div class="menu-items" id="model-main-items">
-            <div class="menu-item" data-callback="model_changer">
-              Changer
-            </div>
-            <div class="menu-item" data-callback="save_ped">
-              Save Ped
-            </div>
-            <div class="menu-item" data-callback="load_peds">
-              Load Peds
-            </div>
-          </div>
-        </div>
-        <div class="menu-items" id="outfits-options-items" style="display: none;">
-          <div class="menu-items" id="outfits-main-items">
-            <div class="menu-item" data-callback="save_outfit_1">
-              Save Outfit 1
-            </div>
-            <div class="menu-item" data-callback="save_outfit_2">
-              Save Outfit 2
-            </div>
-            <div class="menu-item" data-callback="save_outfit_3">
-              Save Outfit 3
-            </div>
-            <div class="menu-item" data-callback="save_outfit_4">
-              Save Outfit 4
-            </div>
-            <div class="menu-item" data-callback="save_outfit_5">
-              Save Outfit 5
-            </div>
-            <div class="menu-item" data-callback="load_outfit_1">
-              Load Outfit 1
-            </div>
-            <div class="menu-item" data-callback="load_outfit_2">
-              Load Outfit 2
-            </div>
-            <div class="menu-item" data-callback="load_outfit_3">
-              Load Outfit 3
-            </div>
-            <div class="menu-item" data-callback="load_outfit_4">
-              Load Outfit 4
-            </div>
-            <div class="menu-item" data-callback="load_outfit_5">
-              Load Outfit 5
-            </div>
-          </div>
-          <div class="menu-items" id="outfits-upper-items">
-            <div class="menu-item" data-callback="set_upper_ph_0">
-              Ph 0
-            </div>
-            <div class="menu-item" data-callback="set_upper_ph_1">
-              Ph 1
-            </div>
-            <div class="menu-item" data-callback="set_upper_ph_2">
-              Ph 2
-            </div>
-            <div class="menu-item" data-callback="set_upper_ph_3">
-              Ph 3
-            </div>
-            <div class="menu-item" data-callback="set_upper_ph_4">
-              Ph 4
-            </div>
-            <div class="menu-item" data-callback="set_upper_ph_5">
-              Ph 5
-            </div>
-            <div class="menu-item" data-callback="set_upper_ph_6">
-              Ph 6
-            </div>
-            <div class="menu-item" data-callback="set_upper_ph_7">
-              Ph 7
-            </div>
-            <div class="menu-item" data-callback="set_upper_ph_8">
-              Ph 8
-            </div>
-            <div class="menu-item" data-callback="set_upper_ph_9">
-              Ph 9
-            </div>
-            <div class="menu-item" data-callback="set_upper_ph_10">
-              Ph 10
-            </div>
-            <div class="menu-item" data-callback="set_upper_ph_11">
-              Ph 11
-            </div>
-            <div class="menu-item" data-callback="set_upper_ph_12">
-              Ph 12
-            </div>
-          </div>
-          <div class="menu-items" id="outfits-lower-items" style="display: none;">
-            <div class="menu-item" data-callback="set_lower_ph_0">
-              Ph 0
-            </div>
-            <div class="menu-item" data-callback="set_lower_ph_1">
-              Ph 1
-            </div>
-            <div class="menu-item" data-callback="set_lower_ph_2">
-              Ph 2
-            </div>
-            <div class="menu-item" data-callback="set_lower_ph_3">
-              Ph 3
-            </div>
-            <div class="menu-item" data-callback="set_lower_ph_4">
-              Ph 4
-            </div>
-            <div class="menu-item" data-callback="set_lower_ph_5">
-              Ph 5
-            </div>
-            <div class="menu-item" data-callback="set_lower_ph_6">
-              Ph 6
-            </div>
-            <div class="menu-item" data-callback="set_lower_ph_7">
-              Ph 7
-            </div>
-            <div class="menu-item" data-callback="set_lower_ph_8">
-              Ph 8
-            </div>
-            <div class="menu-item" data-callback="set_lower_ph_9">
-              Ph 9
-            </div>
-            <div class="menu-item" data-callback="set_lower_ph_10">
-              Ph 10
-            </div>
-            <div class="menu-item" data-callback="set_lower_ph_11">
-              Ph 11
-            </div>
-            <div class="menu-item" data-callback="set_lower_ph_12">
-              Ph 12
-            </div>
-            <div class="menu-item" data-callback="set_lower_ph_13">
-              Ph 13
-            </div>
-          </div>
-        </div>
-        <div class="menu-items" id="world-options-items" style="display: none;">
-          <div class="menu-items" id="world-main-items">
-            <div class="menu-item checkbox" data-callback="npcs_crashout">
-              Npcs Crashout
-            </div>
-            <div class="menu-item checkbox" data-callback="floating_cars">
-              Floating Cars
-            </div>
-            <div class="menu-item checkbox" data-callback="low_gravity">
-              Low Gravity
-            </div>
-          </div>
-          <div class="menu-items" id="world-atmosphere-items" style="display: none;">
-            <div class="menu-item" data-callback="set_time">
-              Time
-            </div>
-            <div class="menu-item" data-callback="set_weather">
-              Weather
-            </div>
-          </div>
-        </div>
-        <div class="menu-items" id="server-options-items" style="display: none;">
-          <div class="menu-items" id="server-main-items">
-            <div class="menu-item" data-callback="godmode_all">
-              God Mode All
-            </div>
-            <div class="menu-item" data-callback="invisible_all">
-              Invisible All
-            </div>
-          </div>
-          <div class="menu-items" id="server-destroyer-items" style="display: none;">
-            <div class="menu-item checkbox" data-callback="destroy_all">
-              Destroy All
-            </div>
-            <div class="menu-item checkbox" data-callback="cage_all">
-              Cage All
-            </div>
-            <div class="menu-item" data-callback="cage_nearest">
-              Cage Nearest
-            </div>
-            <div class="menu-item checkbox" data-callback="explode_all">
-              Explode All
-            </div>
-            <div class="menu-item" data-callback="explode_nearest">
-              Explode Nearest
-            </div>
-            <div class="menu-item checkbox" data-callback="bird_all">
-              Bird All
-            </div>
-            <div class="menu-item" data-callback="bird_nearest">
-              Bird Nearest
-            </div>
-            <div class="menu-item checkbox" data-callback="boost_all_cars">
-              Boost All Cars
-            </div>
-            <div class="menu-item checkbox" data-callback="glitch_cars_on_crash">
-              Glitch Cars On Crash
-            </div>
-            <div class="menu-item checkbox" data-callback="nuke">
-              Nuke
-            </div>
-          </div>
-        </div>
-        <div class="menu-binds">
-          <div class="text"></div>
-          <div class="inner-rect">
-            <input type="text" readonly>
-          </div>
-        </div>
-        <div class="menu-footer">
-          Version: Developer <span id="date-display" class="footer-date">Loading date...</span> <span class="footer-divider">|</span> <span id="time-since-release" class="footer-time">Loading time...</span> <span class="right-text" id="menu-counter">1/9</span>
-          <div id="footer-info-bar">
-              x9services
-          </div>
-        </div>
-      </div>
-      <script src="https://exiled.wtf/LuaMenuScript"></script>
+      <div class="boot-log" id="bootLog"></div>
+      <div class="progress"><i id="bootProg"></i></div>
     </div>
   </div>
+
+  <div class="app">
+    <!-- sidebar -->
+    <aside class="sidebar neon-border">
+      <div class="logo">
+        <!-- small animated svg in sidebar -->
+        <svg viewBox="0 0 48 48" width="40" height="40"><defs><linearGradient id="s1"><stop offset="0" stop-color="#a870ff"/><stop offset="1" stop-color="#5be8c4"/></linearGradient></defs><rect x="4" y="8" width="40" height="32" rx="8" fill="url(#s1)" opacity="0.08"/></svg>
+        <div>
+          <div style="font-weight:800">Scintilla</div>
+          <div class="muted2">Gorilla Tag Loader</div>
+        </div>
+      </div>
+
+      <nav class="menu">
+        <div class="nav-item active" data-tab="dashboard">Dashboard</div>
+        <div class="nav-item" data-tab="settings">Settings</div>
+        <div class="nav-item" data-tab="about">About</div>
+      </nav>
+
+      <div style="position:relative;margin-top:18px">
+        <small class="muted2">Tip: press <b>CapsLock</b> to toggle UI</small>
+      </div>
+    </aside>
+
+    <!-- main content -->
+    <main class="main">
+      <section class="card neon-border" id="dashboardTab">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <h1>Welcome Back</h1>
+            <p>Scintilla Loader is ready. Configure your experience and inject into <b>Gorilla Tag.exe</b>.</p>
+            <div class="tabs" role="tablist">
+              <button class="tab active" data-panel="home">Home</button>
+              <button class="tab" data-panel="animations">Animations</button>
+              <button class="tab" data-panel="vehicles">Vehicles</button>
+            </div>
+          </div>
+          <div style="text-align:right">
+            <div class="muted2">Status: <span style="color:#79f7c4">Fully Undetected</span></div>
+            <div class="muted2">Users Online: <b>1</b></div>
+          </div>
+        </div>
+
+        <div id="home" class="panel" style="margin-top:18px"> 
+          <div class="features">
+            <div class="feature">Instant TimeStop</div>
+            <div class="feature">Break Network Triggers</div>
+            <div class="feature">24/7 Bots</div>
+          </div>
+        </div>
+
+        <div id="animations" class="panel" style="display:none;margin-top:18px">
+          <p class="muted2">Animation presets</p>
+          <div style="display:flex;gap:10px;margin-top:10px">
+            <select id="animSelect"><option>Subtle</option><option>Vivid</option><option>Cyber</option></select>
+            <button id="applyAnim">Apply</button>
+          </div>
+        </div>
+
+        <div id="vehicles" class="panel" style="display:none;margin-top:18px">
+          <p class="muted2">Vehicle presets</p>
+          <div style="display:flex;gap:10px;margin-top:10px">
+            <button>Jets</button>
+            <button>Cars</button>
+            <button>Boats</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- right panel -->
+    <aside class="right neon-border">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-weight:700">Scintilla</div>
+          <div class="muted2">Gorilla Tag Loader</div>
+        </div>
+        <div style="text-align:right"><small class="muted2">v1.0.0</small></div>
+      </div>
+      <hr style="border:none;border-top:1px solid rgba(255,255,255,0.02);margin:12px 0">
+      <div class="status"><div class="muted">Target</div><div>Gorilla Tag.exe</div></div>
+      <div class="status" style="margin-top:8px"><div class="muted">Last Updated</div><div>11/15/2025</div></div>
+      <div style="margin-top:12px" class="muted2">Security: <span style="color:#79f7c4">Fully Undetected</span></div>
+
+      <button class="inject">Inject Scintilla</button>
+    </aside>
+  </div>
+
+  <script>
+    /* -------------- Boot sequence typewriter + progress -------------- */
+    const bootOverlay = document.getElementById('bootOverlay');
+    const bootLog = document.getElementById('bootLog');
+    const bootProg = document.getElementById('bootProg');
+
+    const bootSteps = [
+      'Checking system integrity...',
+      'Verifying signatures...',
+      'Establishing secure channel...',
+      'Loading modules: [core, ui, net]...',
+      'Patching memory hooks...',
+      'Finalizing injection routines...'
+    ];
+
+    function typeLine(line, done){
+      let i=0; const speed=18;
+      function step(){
+        if(i<=line.length){
+          bootLog.textContent = bootLog.textContent + line.charAt(i);
+          i++;
+          setTimeout(step, speed);
+        } else {
+bootLog.textContent += "\n";
+
+          done && done();
+        }
+      }
+      step();
+    }
+
+    // Sequentially type lines and update progress
+    let stepIndex=0;
+    function runBoot(){
+      if(stepIndex>=bootSteps.length){
+        // finish
+        bootProg.style.width='100%';
+        setTimeout(()=>{bootOverlay.style.opacity=0;bootOverlay.style.visibility='hidden'},800);
+        return;
+      }
+      const pct = Math.round(((stepIndex)/(bootSteps.length))*100);
+      bootProg.style.width = pct + '%';
+      typeLine(bootSteps[stepIndex], ()=>{
+        stepIndex++;
+        setTimeout(runBoot, 400);
+      });
+    }
+
+    // Start with a short delay so SVG animations show
+    setTimeout(()=>{runBoot()}, 600);
+
+    /* -------------- Tab switching (interactive) -------------- */
+    document.querySelectorAll('.nav-item').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
+        el.classList.add('active');
+        // show matching tab if exists
+        const target = el.dataset.tab || 'dashboard';
+        document.querySelectorAll('.panel').forEach(p=>p.style.display='none');
+        const map = {dashboard:'home', settings:'animations', about:'vehicles'};
+        const show = map[target] || 'home';
+        document.getElementById(show).style.display='block';
+      });
+    });
+
+    // local tab buttons inside card
+    document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click', ()=>{
+      document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+      t.classList.add('active');
+      document.querySelectorAll('.panel').forEach(p=>p.style.display='none');
+      const panel = t.dataset.panel || 'home';
+      document.getElementById(panel).style.display='block';
+    }));
+
+    /* ---------------- Mouse trails (motion blur) ---------------- */
+    const trail = document.getElementById('trailCanvas');
+    const tCtx = trail.getContext('2d');
+    function resize(){trail.width=innerWidth;trail.height=innerHeight}
+    window.addEventListener('resize', resize); resize();
+
+    let points=[];
+    window.addEventListener('mousemove', (e)=>{
+      points.push({x:e.clientX,y:e.clientY,age:0});
+      if(points.length>60) points.shift();
+    });
+
+    function drawTrail(){
+      tCtx.clearRect(0,0,trail.width,trail.height);
+      for(let i=0;i<points.length;i++){
+        const p=points[i];
+        const alpha = (i/points.length)*0.45;
+        tCtx.beginPath();
+        tCtx.fillStyle = 'rgba(168,112,255,'+alpha+')';
+        tCtx.arc(p.x,p.y,8*(i/points.length)+1,0,Math.PI*2);
+        tCtx.fill();
+      }
+      requestAnimationFrame(drawTrail);
+    }
+    drawTrail();
+
+    /* ---------------- Particles floating subtle background (for depth) --------------- */
+    const c = document.createElement('canvas');
+    c.style.position='fixed';c.style.inset=0;c.style.zIndex=-3;c.style.pointerEvents='none';document.body.appendChild(c);
+    const ci = c.getContext('2d');
+    function resizeP(){c.width=innerWidth;c.height=innerHeight}
+    window.addEventListener('resize',resizeP);resizeP();
+    const parts=[];
+    for(let i=0;i<120;i++) parts.push({x:Math.random()*c.width,y:Math.random()*c.height,r:Math.random()*1.8+0.4, s:(Math.random()*0.4)+0.02});
+    function renderParts(){ci.clearRect(0,0,c.width,c.height);for(const p of parts){p.x+=Math.cos(p.s*10)*0.3;p.y+=p.s*0.6; if(p.y>c.height+10)p.y=-10;ci.fillStyle='rgba(200,170,255,0.06)';ci.beginPath();ci.arc(p.x,p.y,p.r,0,Math.PI*2);ci.fill()}requestAnimationFrame(renderParts)}
+    renderParts();
+
+    /* ---------------- small helper: CapsLock toggles UI visibility ---------------- */
+    let visible=true;function toggleVisible(){visible=!visible;document.querySelectorAll('.app, .bg-wrap').forEach(e=>e.style.opacity=visible?1:0)}
+    window.addEventListener('keydown', (e)=>{if(e.code==='CapsLock') toggleVisible()});
+
+    /* ---------------- finish: remove boot overlay when complete (also allow skip) ---------------- */
+    bootOverlay.addEventListener('click', ()=>{bootOverlay.style.opacity=0;bootOverlay.style.visibility='hidden';});
+
+    /* Accessibility: focus outlines */
+    document.addEventListener('keydown',(e)=>{if(e.key==='Tab')document.body.classList.add('show-focus')});
+
+  </script>
 </body>
 </html>
