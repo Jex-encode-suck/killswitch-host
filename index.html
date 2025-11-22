@@ -1,99 +1,121 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<title>Cyberpunk Player Menu</title>
+<title>Cyberpunk Red Menu</title>
 
 <style>
-    body { margin:0; padding:0; overflow:hidden; background:transparent; }
-    #root { width:100%; height:100%; }
+    body {
+        margin: 0;
+        background: #000;
+        font-family: "Courier New", monospace;
+        overflow: hidden;
+    }
+
+    /* container */
+    #menu {
+        width: 420px;
+        margin: 50px auto;
+        padding: 20px;
+        border: 3px solid red;
+        background: rgba(25, 0, 0, 0.75);
+        color: red;
+        box-shadow: 0 0 30px red;
+        text-shadow: 0 0 8px red;
+        animation: glitch 0.25s infinite;
+    }
+
+    /* cyberpunk title */
+    #title {
+        font-size: 28px;
+        font-weight: bold;
+        margin-bottom: 12px;
+        text-align: center;
+    }
+
+    /* list */
+    #list {
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .item {
+        padding: 8px;
+        border-bottom: 1px solid red;
+        cursor: pointer;
+    }
+
+    .item:hover, .selected {
+        background: rgba(255, 0, 0, 0.25);
+    }
+
+    /* glitch animation */
+    @keyframes glitch {
+        0% { box-shadow: 0 0 8px red; }
+        50% { box-shadow: 0 0 20px red; }
+        100% { box-shadow: 0 0 8px red; }
+    }
 </style>
 
 </head>
 <body>
-<div id="root"></div> <!-- REMOTE HTML WILL BE INJECTED HERE -->
+
+<div id="menu">
+    <div id="title">CYBER MENU</div>
+    <div id="list"></div>
+</div>
 
 <script>
-let selectedIndex = 0;
-let players = [];
+    // Fake players to test menu in a browser
+    const fakePlayers = [
+        "Player 1",
+        "Player 2",
+        "Player 3",
+        "Player 4",
+        "Player 5",
+        "Player 6",
+        "Player 7"
+    ];
 
-/* ================================
-   LUA → NUI MESSAGE HANDLER
-==================================*/
-window.addEventListener("message", (event) => {
-    const data = event.data;
+    let selectedIndex = 0;
 
-    // Load remote HTML into "root"
-    if (data.action === "loadHTML") {
-        document.getElementById("root").innerHTML = data.html;
-        return;
-    }
+    const list = document.getElementById("list");
 
-    // Open
-    if (data.action === "open") {
-        const m = document.getElementById("menu");
-        if (m) m.style.display = "block";
-        return;
-    }
+    // build list
+    fakePlayers.forEach((name, i) => {
+        const div = document.createElement("div");
+        div.className = "item";
+        div.innerText = name;
 
-    // Close
-    if (data.action === "close") {
-        const m = document.getElementById("menu");
-        if (m) m.style.display = "none";
-        return;
-    }
+        if (i === 0) div.classList.add("selected");
 
-    // Update list of players
-    if (data.action === "updatePlayers") {
-        players = data.players;
-        selectedIndex = 0;
-        updateList();
-    }
-});
-
-/* ================================
-   RE-RENDER PLAYER LIST INSIDE THE REMOTE HTML
-==================================*/
-function updateList() {
-    const container = document.getElementById("player-list");
-    if (!container) return;
-
-    container.innerHTML = "";
-
-    players.forEach((p, i) => {
-        const row = document.createElement("div");
-        row.className = "player-btn" + (i === selectedIndex ? " selected" : "");
-        row.innerText = `${p.name} (${p.dist.toFixed(1)}m)`;
-        container.appendChild(row);
+        list.appendChild(div);
     });
-}
 
-/* ================================
-   KEYBOARD CONTROLS
-==================================*/
-document.addEventListener("keydown", (e) => {
-    const menu = document.getElementById("menu");
-    if (!menu || menu.style.display === "none") return;
-
-    if (e.key === "ArrowUp") {
-        selectedIndex = (selectedIndex - 1 + players.length) % players.length;
-        updateList();
-    }
-    if (e.key === "ArrowDown") {
-        selectedIndex = (selectedIndex + 1) % players.length;
-        updateList();
-    }
-    if (e.key === "Enter") {
-        const chosen = players[selectedIndex];
-        if (!chosen) return;
-
-        fetch(`https://${GetParentResourceName()}/selectPlayer`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ped: chosen.ped })
+    function updateSelection() {
+        [...document.getElementsByClassName("item")].forEach((d, i) => {
+            d.classList.toggle("selected", i === selectedIndex);
         });
+
+        // auto scroll into view
+        document.getElementsByClassName("item")[selectedIndex]
+            .scrollIntoView({ behavior: "smooth", block: "center" });
     }
-});
+
+    // scrolling + selection via keyboard
+    document.addEventListener("keydown", e => {
+        if (e.key === "ArrowDown") {
+            selectedIndex = (selectedIndex + 1) % fakePlayers.length;
+            updateSelection();
+        }
+        if (e.key === "ArrowUp") {
+            selectedIndex = (selectedIndex - 1 + fakePlayers.length) % fakePlayers.length;
+            updateSelection();
+        }
+        if (e.key === "Enter") {
+            alert("Selected: " + fakePlayers[selectedIndex]);
+        }
+    });
 </script>
 
 </body>
