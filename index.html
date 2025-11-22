@@ -12,7 +12,6 @@
         overflow: hidden;
     }
 
-    /* container */
     #menu {
         width: 420px;
         margin: 50px auto;
@@ -23,9 +22,9 @@
         box-shadow: 0 0 30px red;
         text-shadow: 0 0 8px red;
         animation: glitch 0.25s infinite;
+        display: none;
     }
 
-    /* cyberpunk title */
     #title {
         font-size: 28px;
         font-weight: bold;
@@ -33,7 +32,6 @@
         text-align: center;
     }
 
-    /* list */
     #list {
         max-height: 300px;
         overflow-y: auto;
@@ -49,14 +47,12 @@
         background: rgba(255, 0, 0, 0.25);
     }
 
-    /* glitch animation */
     @keyframes glitch {
         0% { box-shadow: 0 0 8px red; }
         50% { box-shadow: 0 0 20px red; }
         100% { box-shadow: 0 0 8px red; }
     }
 </style>
-
 </head>
 <body>
 
@@ -66,54 +62,71 @@
 </div>
 
 <script>
-    // Fake players to test menu in a browser
-    const fakePlayers = [
-        "Player 1",
-        "Player 2",
-        "Player 3",
-        "Player 4",
-        "Player 5",
-        "Player 6",
-        "Player 7"
-    ];
-
+    let players = [];
     let selectedIndex = 0;
 
+    const menu = document.getElementById("menu");
     const list = document.getElementById("list");
 
-    // build list
-    fakePlayers.forEach((name, i) => {
-        const div = document.createElement("div");
-        div.className = "item";
-        div.innerText = name;
+    // Receive event from FiveM
+    window.addEventListener("message", function (event) {
+        if (event.data.action === "show") {
+            players = event.data.players;
+            buildList();
+            selectedIndex = 0;
+            updateSelection();
+            menu.style.display = "block";
+        }
 
-        if (i === 0) div.classList.add("selected");
-
-        list.appendChild(div);
+        if (event.data.action === "hide") {
+            menu.style.display = "none";
+        }
     });
 
+    // Build player list
+    function buildList() {
+        list.innerHTML = "";
+        players.forEach((p, i) => {
+            const div = document.createElement("div");
+            div.className = "item";
+            div.innerText = p.name;
+            list.appendChild(div);
+        });
+    }
+
+    // highlight selected
     function updateSelection() {
         [...document.getElementsByClassName("item")].forEach((d, i) => {
             d.classList.toggle("selected", i === selectedIndex);
         });
 
-        // auto scroll into view
         document.getElementsByClassName("item")[selectedIndex]
             .scrollIntoView({ behavior: "smooth", block: "center" });
     }
 
-    // scrolling + selection via keyboard
+    // Controls
     document.addEventListener("keydown", e => {
         if (e.key === "ArrowDown") {
-            selectedIndex = (selectedIndex + 1) % fakePlayers.length;
+            selectedIndex = (selectedIndex + 1) % players.length;
             updateSelection();
         }
         if (e.key === "ArrowUp") {
-            selectedIndex = (selectedIndex - 1 + fakePlayers.length) % fakePlayers.length;
+            selectedIndex = (selectedIndex - 1 + players.length) % players.length;
             updateSelection();
         }
         if (e.key === "Enter") {
-            alert("Selected: " + fakePlayers[selectedIndex]);
+            fetch(`https://${GetParentResourceName()}/selectPlayer`, {
+                method: "POST",
+                body: JSON.stringify({
+                    id: players[selectedIndex].id
+                })
+            });
+        }
+        if (e.key === "Escape") {
+            fetch(`https://${GetParentResourceName()}/close`, {
+                method: "POST",
+                body: "{}"
+            });
         }
     });
 </script>
