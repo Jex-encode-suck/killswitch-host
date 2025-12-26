@@ -1,140 +1,148 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Cyberpunk Red Menu</title>
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fatality Menu</title>
 <style>
-    body {
-        margin: 0;
-        background: #000;
-        font-family: "Courier New", monospace;
-        overflow: hidden;
-    }
+  /* General Styles */
+  body, html {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
+    font-family: 'Arial', sans-serif;
+    background: #111;
+    color: #fff;
+  }
 
-    #menu {
-        width: 420px;
-        margin: 50px auto;
-        padding: 20px;
-        border: 3px solid red;
-        background: rgba(25, 0, 0, 0.75);
-        color: red;
-        box-shadow: 0 0 30px red;
-        text-shadow: 0 0 8px red;
-        animation: glitch 0.25s infinite;
-        display: none;
-    }
+  /* Canvas for particle grid */
+  #bgCanvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 0;
+  }
 
-    #title {
-        font-size: 28px;
-        font-weight: bold;
-        margin-bottom: 12px;
-        text-align: center;
-    }
+  /* Title */
+  h1 {
+    position: absolute;
+    top: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 48px;
+    color: red;
+    text-shadow: 0 0 10px #ff0000, 0 0 20px #ff0000;
+    z-index: 2;
+  }
 
-    #list {
-        max-height: 300px;
-        overflow-y: auto;
-    }
+  /* Panel */
+  #menuPanel {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 300px;
+    padding: 20px;
+    background: rgba(20,0,0,0.9);
+    border: 2px solid red;
+    border-radius: 15px;
+    box-shadow: 0 0 30px rgba(255,0,0,0.7);
+    text-align: center;
+    z-index: 2;
+    transition: transform 0.5s ease, opacity 0.5s ease;
+  }
 
-    .item {
-        padding: 8px;
-        border-bottom: 1px solid red;
-        cursor: pointer;
-    }
+  /* Button */
+  #downloadBtn {
+    margin-top: 20px;
+    padding: 12px 20px;
+    font-size: 18px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    background: red;
+    color: white;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
 
-    .item:hover, .selected {
-        background: rgba(255, 0, 0, 0.25);
-    }
-
-    @keyframes glitch {
-        0% { box-shadow: 0 0 8px red; }
-        50% { box-shadow: 0 0 20px red; }
-        100% { box-shadow: 0 0 8px red; }
-    }
+  #downloadBtn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 15px red;
+  }
 </style>
 </head>
 <body>
 
-<div id="menu">
-    <div id="title">CYBER MENU</div>
-    <div id="list"></div>
+<canvas id="bgCanvas"></canvas>
+
+<h1>FATALITY</h1>
+
+<div id="menuPanel">
+  <button id="downloadBtn">Download Menu</button>
 </div>
 
 <script>
-    let players = [];
-    let selectedIndex = 0;
+  // ---------------------------
+  // Particle Dot Grid Background
+  // ---------------------------
+  const canvas = document.getElementById('bgCanvas');
+  const ctx = canvas.getContext('2d');
+  let width = canvas.width = window.innerWidth;
+  let height = canvas.height = window.innerHeight;
 
-    const menu = document.getElementById("menu");
-    const list = document.getElementById("list");
+  const particles = [];
+  const particleCountX = Math.floor(width / 50);
+  const particleCountY = Math.floor(height / 50);
 
-    // Receive event from FiveM
-    window.addEventListener("message", function (event) {
-        if (event.data.action === "show") {
-            players = event.data.players;
-            buildList();
-            selectedIndex = 0;
-            updateSelection();
-            menu.style.display = "block";
-        }
-
-        if (event.data.action === "hide") {
-            menu.style.display = "none";
-        }
-    });
-
-    // Build player list
-    function buildList() {
-        list.innerHTML = "";
-        players.forEach((p, i) => {
-            const div = document.createElement("div");
-            div.className = "item";
-            div.innerText = p.name;
-            list.appendChild(div);
-        });
+  for (let y = 0; y < particleCountY; y++) {
+    for (let x = 0; x < particleCountX; x++) {
+      particles.push({
+        x: x * 50 + Math.random()*10,
+        y: y * 50 + Math.random()*10,
+        alpha: Math.random()
+      });
     }
+  }
 
-    // highlight selected
-    function updateSelection() {
-        [...document.getElementsByClassName("item")].forEach((d, i) => {
-            d.classList.toggle("selected", i === selectedIndex);
-        });
-
-        document.getElementsByClassName("item")[selectedIndex]
-            .scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-
-    // Controls
-    document.addEventListener("keydown", e => {
-        if (e.key === "ArrowDown") {
-            selectedIndex = (selectedIndex + 1) % players.length;
-            updateSelection();
-        }
-        if (e.key === "ArrowUp") {
-            selectedIndex = (selectedIndex - 1 + players.length) % players.length;
-            updateSelection();
-        }
-        if (e.key === "Enter") {
-            fetch(`https://${GetParentResourceName()}/selectPlayer`, {
-                method: "POST",
-                body: JSON.stringify({
-                    id: players[selectedIndex].id
-                })
-            });
-        }
-        if (e.key === "Escape") {
-            fetch(`https://${GetParentResourceName()}/close`, {
-                method: "POST",
-                body: "{}"
-            });
-        }
+  function animate() {
+    ctx.clearRect(0, 0, width, height);
+    particles.forEach(p => {
+      p.alpha += (Math.random()*0.02 - 0.01);
+      if(p.alpha > 1) p.alpha = 1;
+      if(p.alpha < 0) p.alpha = 0;
+      ctx.fillStyle = `rgba(255,0,0,${p.alpha})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 3, 0, Math.PI*2);
+      ctx.fill();
     });
-// ENABLE THIS FOR WEB PREVIEW
-if (!window.invokeNative) {
-    menu.style.display = "block"; // show menu on normal websites
-}
+    requestAnimationFrame(animate);
+  }
+  animate();
 
-    
+  window.addEventListener('resize', () => {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+  });
+
+  // ---------------------------
+  // Download Button Animation
+  // ---------------------------
+  const btn = document.getElementById('downloadBtn');
+  btn.addEventListener('click', () => {
+    btn.textContent = 'Downloading...';
+    btn.disabled = true;
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += 5;
+      btn.textContent = `Downloading... ${progress}%`;
+      if(progress >= 100){
+        clearInterval(interval);
+        btn.textContent = 'Download Complete!';
+      }
+    }, 100);
+  });
 </script>
 
 </body>
